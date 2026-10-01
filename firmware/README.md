@@ -24,6 +24,8 @@ between toolchains as a regression.
 | `make flash PORT=/dev/tty.…` | flash over SerialUPDI. ⚠️ This does **not** write the calibration record; prefer `../tools/pmgr_flash_with_pram.py` (see `../docs/BUILD.md` §7) |
 | `make clean` | |
 
+For wiring the programmer and flashing step by step, see [`../docs/PROGRAMMING.md`](../docs/PROGRAMMING.md).
+
 ## Host-side tests
 
 The protocol, PRAM save, ADC handling, calibration and charging logic are compiled natively and

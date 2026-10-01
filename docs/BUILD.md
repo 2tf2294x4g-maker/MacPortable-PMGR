@@ -41,7 +41,7 @@ Read the safety notes in the top-level [`README`](../README.md) first.
 
 ## 4. Program the AVR — before it goes anywhere near a machine
 
-See [`../firmware/README.md`](../firmware/README.md).
+**Full step-by-step guide: [`PROGRAMMING.md`](PROGRAMMING.md).** The short version:
 
 1. Build: `make -C firmware`.
 2. Programmer: any USB-UART adapter used as SerialUPDI, with a **1 kΩ series resistor** on the
