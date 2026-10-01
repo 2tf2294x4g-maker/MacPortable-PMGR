@@ -30,6 +30,65 @@ pin 1** — the chip carries the same three marks, so they fix rotation only. Pi
 
 ![Footprint orientation](../images/footprint-orientation.jpg)
 
+**AVR128DB64 (U1 on the MCU board)** — every signal pin, with the M50753 pin and J21 pin it
+stands in for. Generated from the MCU board file and checked against the firmware's pin header.
+
+| AVR pin | port | signal | M50753 pin | J21 pin |
+|---:|:--|:--|---:|---:|
+| 1 | `PA3` | VIAD3 | 2 | 49 |
+| 2 | `PA4` | VIAD4 | 1 | 19 |
+| 3 | `PA5` | VIAD5 | 60 | 25 |
+| 4 | `PA6` | VIAD6 | 59 | 27 |
+| 5 | `PA7` | VIAD7 | 58 | 50 |
+| 8 | `PB0` | PMREQ* | 6 | 21 |
+| 9 | `PB1` | PMACK* | 7 | 17 |
+| 10 | `PB2` | PMINT* | 8 | 15 |
+| 11 | `PB3` | SYS_RST* | 12 | 9 |
+| 12 | `PB4` | RESET* | 13 | 7 |
+| 13 | `PB5` | PMGR_RESET* | 18 | 46 |
+| 14 | `PB6` | VIA_TEST | 11 | 6 |
+| 15 | `PB7` | 1SEC* | 9 | 13 |
+| 16 | `PC0` | SOUND_LATCH | 51 | 38 |
+| 17 | `PC1` | OFF_HOOK* | 50 | 36 |
+| 18 | `PC2` | 60HZ | 15 | 5 |
+| 22 | `PC4` | PMGCLK_F | 19 | 39 |
+| 26 | `PD0` | A/D_FILTER | 52 | 40 |
+| 27 | `PD1` | PMGR_ADB | 28 | 29 |
+| 28 | `PD2` | FDB | 27 | 37 |
+| 29 | `PD3` | DISP_BLANK* | 26 | 32 |
+| 30 | `PD4` | MODEM_INS* | 25 | 35 |
+| 31 | `PD5` | SOUND_OFF | 10 | 11 |
+| 32 | `PD6` | PMGR_PWM | 57 | 42 |
+| 33 | `PD7` | PMGR_IN0 | 54 | 48 |
+| 36 | `PE0` | AKD | 35 | 12 |
+| 37 | `PE1` | STOP_CLK | 34 | 10 |
+| 38 | `PE2` | CHRG_ON* | 33 | 8 |
+| 39 | `PE3` | KBD_RST* | 32 | 43 |
+| 40 | `PE4` | HICHG | 31 | 44 |
+| 41 | `PE5` | RING_DETECT | 30 | 33 |
+| 42 | `PE6` | MODEM_A/B | 29 | 31 |
+| 47 | `PF3` | debug pad — ADC scale check passed | — | — |
+| 48 | `PF4` | debug pad — ADC timeout (latched) | — | — |
+| 49 | `PF5` | debug pad — RTC/PIT sync timeout | — | — |
+| 52 | `PG0` | SYS_PWR* | 37 | 16 |
+| 53 | `PG1` | -5_EN | 38 | 18 |
+| 54 | `PG2` | SOUND_PWR* | 39 | 20 |
+| 55 | `PG3` | SERIAL_PWR* | 40 | 22 |
+| 58 | `PG4` | MODEM_PWR* | 41 | 24 |
+| 59 | `PG5` | HD_PWR* | 42 | 30 |
+| 60 | `PG6` | SCC_CNTRL | 43 | 28 |
+| 61 | `PG7` | IWM_CNTRL | 44 | 26 |
+| 62 | `PA0` | VIAD0 | 5 | 23 |
+| 63 | `PA1` | VIAD1 | 4 | 45 |
+| 64 | `PA2` | VIAD2 | 3 | 47 |
+
+- **Not wired to the AVR:** J21-34 `PMGR_IN4` (M50753 pin 49 — an input the original firmware does
+  not read) and J21-41 `EPMGR_RST*` (belongs to the J21 connector, not to the chip).
+- **Power and programming pins** (VDD, AVDD, VDDIO2, ground, UPDI, RESET) are in
+  [`MCU-BOARD-SCHEMATIC.md`](MCU-BOARD-SCHEMATIC.md).
+- All eight VIA data bits sit on `PORTA`, so a bus read is a single instruction — the handshake
+  timing depends on it.
+
 The full pin-by-pin mapping, through the interposer to the AVR, is in [`PINOUT.md`](PINOUT.md).
 
 ### Footprint checks — power OFF, before fitting anything
@@ -93,6 +152,17 @@ comes back on at the next step up — essentially no hysteresis. If your machine
 this, suspect the hybrid or the battery wiring before the PMGR.
 
 ## Charging — measured on the development machine
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../images/charge-curve-dark.png">
+  <img alt="Battery voltage through two supervised charges: fast charge climbs to the 7.20 V knee, the top-off timer runs, fast charge ends, and the pack floats" src="../images/charge-curve-light.png">
+</picture>
+
+**Left:** a full charge from 6.55 V — fast charge climbs to the knee, the top-off timer then runs
+for a further ~37 minutes, and fast charge ends. **Right:** the current firmware, starting close to
+the knee, then 42 minutes of float. The left run used the firmware before the battery-reading
+interlock was added; the charging logic is otherwise the same. Phases are read from the PMGR's own
+flags; the knee marker is where its reported level reached 208 (7.20 V).
 
 A 3-cell Cyclon pack, the machine's own charger, two supervised charges:
 
