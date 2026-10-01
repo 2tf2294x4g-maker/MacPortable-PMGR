@@ -11,13 +11,13 @@ behaviour toward the Mac.
 | **MCU board** | 20.0 × 23.5 mm — carries the AVR, plugs onto the interposer through a Hirose DF12 connector |
 | **J21 breakout** *(optional)* | sits between the two for development, bringing every PMGR signal out to 2.54 mm Dupont headers |
 
-## Status
+## Status — version 0.1, prototype
 
 **Working in a Macintosh Portable.** It boots, sleeps and wakes, shuts down and honours the reset
 switch under System 6.0.8 and 7.5.3, and a supervised fast charge terminates correctly. It was
 developed on one Portable, with a second, unmodified Portable kept as the reference.
 
-It is **experimental**. Some parts of the charging behaviour have not been characterised on
+It is a **prototype**. Some parts of the charging behaviour have not been characterised on
 hardware yet, and the PowerBook 100 (which uses the same PMGR) has not been tried. Read
 [`docs/VERIFIED.md`](docs/VERIFIED.md) for exactly what has and has not been shown — before relying
 on it unattended.
