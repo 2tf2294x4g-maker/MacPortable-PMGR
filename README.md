@@ -38,6 +38,20 @@ hardware yet, and the PowerBook 100 (which uses the same PMGR) has not been trie
 [`docs/VERIFIED.md`](docs/VERIFIED.md) for exactly what has and has not been shown — before relying
 on it unattended.
 
+## Before you start: this is fine-pitch soldering
+
+Building and fitting this needs **experienced surface-mount work** — it is not a beginner's kit:
+
+- a **0.5 mm-pitch TQFP-64** (the AVR) and two **50-pin, 0.5 mm-pitch** Hirose DF12 connectors;
+- **0402** resistors and capacitors (about 1 × 0.5 mm), several on the board's **underside**;
+- removing the original **60-lead power manager** from the Mac's logic board, then soldering the
+  interposer's **castellated edges** onto that footprint.
+
+You'll want a hot-air station with preheat, a fine-tip iron, flux, solder wick, and magnification —
+a stereo microscope makes this far easier. Having the fab assemble the MCU board removes most of the
+0.5 mm work; removing the original chip and fitting the interposer still has to be done by hand.
+See [`docs/BUILD.md`](docs/BUILD.md).
+
 ## ⛔ Safety — read before you start
 
 - **The battery-sense input of an ORIGINAL M50753 is unprotected.** On a machine still carrying

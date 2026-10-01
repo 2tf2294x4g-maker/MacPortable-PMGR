@@ -7,6 +7,26 @@ this repository.
 
 Read the safety notes in the top-level [`README`](../README.md) first.
 
+## 0. Skills and tools
+
+This is **fine-pitch surface-mount work on an irreplaceable machine.** Be comfortable with:
+
+| part | where | what it takes |
+|---|---|---|
+| AVR128DB64, TQFP-64, **0.5 mm** pitch | MCU board, top | drag soldering with plenty of flux; inspect every side for bridges |
+| Hirose DF12, 50 pins, **0.5 mm** pitch | one on each board — the MCU board's is on the **underside** | no mechanical key: verify rotation with a meter before soldering |
+| **0402** passives (×8) and a SOT-23 diode | MCU board, both sides | tweezers and magnification |
+| the original M50753, 60 leads | the Mac's logic board | **removal** with hot air and preheat, without lifting pads or overheating the board |
+| interposer, 60 castellated edges, 0.8 mm | onto that footprint | aligning and soldering all four sides in place |
+
+**Tools:** hot-air station with preheat, fine-tip iron, flux, solder wick, tweezers, a multimeter,
+and magnification — a stereo microscope is strongly recommended.
+
+⭐ **Ordering the MCU board assembled** (two-sided, from the files in `hardware/mcu-board/`) takes the
+0.5 mm and 0402 work off your bench. Removing the original chip and fitting the interposer can't be
+outsourced. If you haven't removed a fine-pitch QFP from a board you care about before, practise on
+scrap first.
+
 ## 1. Order the boards
 
 | Board | Specification | Files |
