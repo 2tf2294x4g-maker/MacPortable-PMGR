@@ -164,8 +164,8 @@ the knee, then 42 minutes of float. The left run used the firmware before the ba
 interlock was added; the charging logic is otherwise the same. Phases are read from the PMGR's own
 flags; the knee marker is where its reported level reached 208 (7.20 V).
 
-> ⚠️ **Not yet confirmed as normal.** Two features of these curves may belong to this machine's
-> **replacement hybrid** rather than to a healthy charger:
+> ⚠️ **Not yet confirmed as normal.** Two features of these curves may come from **this particular
+> machine** — its **replacement hybrid** or its **logic board** — rather than from a healthy charger:
 >
 > - **The drop when fast charge ends is small** — about 40 mV. When a charger genuinely falls back to
 >   a trickle, the pack voltage should fall noticeably.
@@ -196,7 +196,12 @@ On the development machine, the fast-charge bypass transistor **Q1** (the IRF9Z3
 charger jack) is held **on** by the replacement hybrid even with no charger connected; on the
 unmodified machine it is off. If Q1 also stays on **after fast charge ends**, charging would never
 fall back to the slow path through R10 — which would explain both the small termination drop and
-the high float above. This is being followed up with the hybrid's maker. Planned checks:
+the high float above.
+
+**The cause is not yet known, and it may be this machine's logic board rather than the hybrid.**
+The board was repaired after earlier damage. The checks so far found Q1's gate pull-up intact and
+every line the PMGR drives normal, but they do not rule the board out. It is being followed up with
+the hybrid's maker in parallel. Planned checks:
 
 1. **Q1's gate-to-source voltage during fast charge, then again after it ends.** Still about −5 V
    afterwards would mean Q1 never turns off.

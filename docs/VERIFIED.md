@@ -41,8 +41,8 @@ second, **unmodified Portable** used as the reference. One machine is a small sa
   profile through a charge is unknown.
 - **Float is a single 42-minute observation**, voltage only. In it the pack stayed near 7.23 V
   (about 2.41 V per cell, above the Cyclon float band). Whether that settles lower, and what current
-  sustains it, is not known — and it may reflect the development machine's replacement hybrid rather
-  than normal behaviour; see "Under active investigation" in
+  sustains it, is not known — and it may reflect the development machine — its replacement hybrid or its logic
+  board — rather than normal behaviour; see "Under active investigation" in
   [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md).
 - **What switching off fast charge mid-charge does to the current** has not been measured. The design
   assumes it reduces the rate; that is supported by one older observation, on a different battery.
@@ -55,13 +55,14 @@ second, **unmodified Portable** used as the reference. One machine is a small sa
   is acceptable for a machine left unplugged for weeks is open.
 - **The PowerBook 100** uses the same power manager and has not been tried.
 
-## About the development machine's hybrid
+## About the development machine
 
 The development Portable carries a **third-party replacement hybrid** (the power-supply module the
 PMGR works with). Compared with an original hybrid, that one cuts the machine off at a higher
 battery voltage (about 5.94 V) and holds the fast-charge bypass transistor (Q1) switched on with no
-charger connected. Both **appear to come from that hybrid rather than from this PMGR** — every
-PMGR-driven line measured the same as on the original machine — but **neither is settled**, and both
-are being followed up with the hybrid's maker. They are
+charger connected. Both **appear not to come from this PMGR** — every PMGR-driven line measured the
+same as on the original machine — but **neither is settled**. They may come from the hybrid, or from
+that machine's **logic board**, which was repaired after earlier damage. Both possibilities are being
+followed up, including with the hybrid's maker. They are
 noted here because if your machine has a replacement hybrid, its charging and cut-off may differ
 from an original's too.
