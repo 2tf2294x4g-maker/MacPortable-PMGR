@@ -70,6 +70,7 @@ castellated edges, and check it before stacking.
 
 Interposer on the logic board, then (optionally) the J21 breakout, then the MCU board.
 Bench power first, at a modest voltage, with the battery out.
+Check the voltages and pin references in [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md).
 
 ## 7. Calibrate the battery reading
 

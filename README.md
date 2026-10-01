@@ -56,6 +56,7 @@ on it unattended.
 ```
 docs/BUILD.md             start here: order, assemble, program, calibrate, install
 docs/VERIFIED.md          what has been shown on hardware, and what has not
+docs/REFERENCE-MEASUREMENTS.md  known-good voltages and pin references to check against
 docs/ASSEMBLY.md          the detailed, bench-tested assembly procedure
 docs/PINOUT.md            M50753 pin -> interposer -> AVR mapping
 docs/MCU-BOARD-SCHEMATIC.md
