@@ -53,6 +53,10 @@ See [`../firmware/README.md`](../firmware/README.md).
 4. **Fuses, once per board, before the first flash:** `make -C firmware fuses`
    (see [`../firmware/FUSES.md`](../firmware/FUSES.md)).
 5. Flash — see step 7 for why it should go through the flash tool once a record exists.
+6. ⛔ **Then unplug the programmer and do a real power cycle** — supply or battery disconnected.
+   This applies after **any** programmer operation, even a device-ID read with nothing written:
+   without it, a machine that is shut down failed to wake from the keyboard every time it was
+   tried (7 of 7). A power-on start always works. The cause has not been established.
 
 ⛔ **`J2` pin 2 is +5 V and it reaches the machine.** Mind it when wiring the programmer.
 
@@ -85,6 +89,8 @@ without a valid one.** The machine works without a record — it just charges sl
 
 ⛔ **Every flash erases EEPROM.** Always flash through the tool with the record, or the board
 silently returns to "no fast charge".
+As after any programmer operation, **unplug the programmer and power-cycle** before starting the
+machine (step 4).
 
 ⚠️ **Honest limitation:** step 1 currently needs the level the PMGR reports, which in development
 was read by decoding the PMGR's battery reply with a logic analyser. A simpler way to read it is

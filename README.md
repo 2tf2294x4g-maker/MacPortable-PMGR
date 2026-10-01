@@ -33,7 +33,10 @@ on it unattended.
   cells, which accept an unlimited initial current. Many modern substitute packs are rated far lower.
 - **Every flash must re-write the calibration record** (see [`docs/BUILD.md`](docs/BUILD.md)).
   Without it the firmware deliberately refuses to fast-charge.
-- A USB-UPDI programmer left plugged in **back-feeds the board**. Unplug it for a real power cycle.
+- **After any programmer operation — flash, fuses, even just reading the device ID — unplug the
+  programmer and power-cycle the machine** (supply or battery disconnected) before expecting it to
+  start. Otherwise a machine that is shut down may not wake from the keyboard. While the programmer
+  is connected it **back-feeds the board**, so switching off is not a power cycle.
 
 ## Repository
 
