@@ -1,0 +1,7 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"J1","DF12C-50DS (down)","Hirose_DF12_DF12C3.0-50DS-0.5V_2x25_P0.50mm_Vertical",100.000000,-102.000000,0.000000,bottom
+"H1","MountingHole","MountingHole_2.2mm",100.000000,-132.000000,0.000000,top
+"H2","MountingHole","MountingHole_2.2mm",100.000000,-177.460000,0.000000,top
+"J2","DF12E-50DP (up)","Hirose_DF12_DF12E3.0-50DP-0.5V_2x25_P0.50mm_Vertical",100.000000,-102.000000,0.000000,top
+"J5","J21 ODD 1-49","PinHeader_1x25_P2.54mm_Vertical",91.000000,-113.000000,0.000000,top
+"J6","J21 EVEN 2-50","PinHeader_1x25_P2.54mm_Vertical",114.000000,-113.000000,0.000000,top

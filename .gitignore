@@ -1,0 +1,32 @@
+# ⛔ The byte-exact ROM image. Never commit it.
+firmware/include/pmgr_rom_image.h
+*.bin
+*.rom
+*.asm
+
+# build output
+*.o
+*.elf
+*.hex
+*.lst
+*.map
+firmware/.build-config
+firmware/test/t
+firmware/test/ta
+firmware/test/ts
+firmware/test/tl
+firmware/test/tal
+firmware/test/td
+firmware/test/tr
+firmware/test/tc
+firmware/test/tcal
+firmware/test/cross_calib
+firmware/test/*_native.c
+
+# KiCad per-user state
+*.kicad_prl
+*.lck
+*-backups/
+fp-info-cache
+
+.DS_Store

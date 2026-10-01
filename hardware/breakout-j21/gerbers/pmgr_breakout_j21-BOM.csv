@@ -1,0 +1,5 @@
+Designator,Qty,Manufacturer Part Number,Manufacturer,Description,Package,Mount,Side,Assembly,Notes
+J1,1,DF12NC(3.0)-50DS-0.5V(51),Hirose,"Board-to-board SOCKET, 50 position, 0.5mm pitch, 3.0mm stack height",DF12N 50-pos,SMD,BOTTOM,PLACE,"SOCKET = DS. BOTTOM side. See assembly drawing for pin 1. Do not substitute the DP header."
+J2,1,DF12NC(3.0)-50DP-0.5V(51),Hirose,"Board-to-board HEADER, 50 position, 0.5mm pitch, 3.0mm stack height",DF12N 50-pos,SMD,TOP,PLACE,"HEADER = DP. TOP side, directly above J1. See assembly drawing for pin 1. Do not substitute the DS socket."
+J5,1,1x25 2.54mm pin header,-,"Pin header, 1x25, 2.54mm, vertical",1x25 P2.54mm,THT,TOP,DO NOT POPULATE,"Customer-fitted. Do not source or place."
+J6,1,1x25 2.54mm pin header,-,"Pin header, 1x25, 2.54mm, vertical",1x25 P2.54mm,THT,TOP,DO NOT POPULATE,"Customer-fitted. Do not source or place."
