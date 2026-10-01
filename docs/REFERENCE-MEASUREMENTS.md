@@ -164,6 +164,21 @@ the knee, then 42 minutes of float. The left run used the firmware before the ba
 interlock was added; the charging logic is otherwise the same. Phases are read from the PMGR's own
 flags; the knee marker is where its reported level reached 208 (7.20 V).
 
+> ⚠️ **Not yet confirmed as normal.** Two features of these curves may belong to this machine's
+> **replacement hybrid** rather than to a healthy charger:
+>
+> - **The drop when fast charge ends is small** — about 40 mV. When a charger genuinely falls back to
+>   a trickle, the pack voltage should fall noticeably.
+> - **The float level is high** — about 7.23 V, or 2.41 V per cell, where the Cyclon float band is
+>   2.25–2.30 V per cell (6.75–6.90 V). Held there for long periods, a lead-acid pack ages faster.
+>
+> The **step changes** in the left panel (around 27, 50 and 73 minutes) are probably the Mac's own
+> power use changing while it ran, since the charger supplies both the machine and the pack. That
+> has not been checked.
+>
+> Use the **sequence** — fast charge, knee, top-off, termination — as the reference. Treat the
+> **float level** as unconfirmed until it has been measured on a machine with an original hybrid.
+
 A 3-cell Cyclon pack, the machine's own charger, two supervised charges:
 
 ```
@@ -174,6 +189,22 @@ A 3-cell Cyclon pack, the machine's own charger, two supervised charges:
 ```
 
 A DMM at the pack agreed with the logged readings to about 15 mV.
+
+### 🔧 Under active investigation
+
+On the development machine, the fast-charge bypass transistor **Q1** (the IRF9Z30 beside the
+charger jack) is held **on** by the replacement hybrid even with no charger connected; on the
+unmodified machine it is off. If Q1 also stays on **after fast charge ends**, charging would never
+fall back to the slow path through R10 — which would explain both the small termination drop and
+the high float above. This is being followed up with the hybrid's maker. Planned checks:
+
+1. **Q1's gate-to-source voltage during fast charge, then again after it ends.** Still about −5 V
+   afterwards would mean Q1 never turns off.
+2. **The same charge on a machine with an original hybrid**, for a normal curve to compare against.
+3. **Charge current through the whole cycle**, with a DC clamp meter — never yet measured.
+
+Results will be added here. If you have a Portable with an original hybrid, a logged charge with
+the pack voltage at termination would help.
 
 ## Board checks
 

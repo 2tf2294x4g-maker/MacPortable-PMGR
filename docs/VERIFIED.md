@@ -41,7 +41,9 @@ second, **unmodified Portable** used as the reference. One machine is a small sa
   profile through a charge is unknown.
 - **Float is a single 42-minute observation**, voltage only. In it the pack stayed near 7.23 V
   (about 2.41 V per cell, above the Cyclon float band). Whether that settles lower, and what current
-  sustains it, is not known.
+  sustains it, is not known — and it may reflect the development machine's replacement hybrid rather
+  than normal behaviour; see "Under active investigation" in
+  [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md).
 - **What switching off fast charge mid-charge does to the current** has not been measured. The design
   assumes it reduces the rate; that is supported by one older observation, on a different battery.
 - **A brief battery-reading fault during charging** would not necessarily show in the data that was
