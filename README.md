@@ -27,8 +27,11 @@ behaviour toward the Mac.
 ## Status — version 0.1, prototype
 
 **Working in a Macintosh Portable.** It boots, sleeps and wakes, shuts down and honours the reset
-switch under System 6.0.8 and 7.5.3, and a supervised fast charge terminates correctly. It was
-developed on one Portable, with a second, unmodified Portable kept as the reference.
+switch under System 6.0.8 and 7.5.3, and a supervised fast charge terminates correctly.
+
+It has **only been installed and tested in a Macintosh Portable M5120** (the original, non-backlit
+model), with a second, unmodified Portable kept as the reference. **The backlit Portable (M5126) has not
+been tried.**
 
 It is a **prototype**. Some parts of the charging behaviour have not been characterised on
 hardware yet, and the PowerBook 100 (which uses the same PMGR) has not been tried. Read

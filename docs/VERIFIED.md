@@ -1,7 +1,8 @@
 # What has been verified
 
-Everything below was measured on a **Macintosh Portable fitted with this replacement**, against a
-second, **unmodified Portable** used as the reference. One machine is a small sample: treat these as
+Everything below was measured on a **Macintosh Portable M5120 fitted with this replacement**, against
+a second, **unmodified Portable** used as the reference. **It has not been installed in any other model**
+— not the backlit Portable (M5126), and not the PowerBook 100. One machine is a small sample: treat these as
 "shown to work here", not "guaranteed to work everywhere".
 
 ## ✅ Shown on hardware
