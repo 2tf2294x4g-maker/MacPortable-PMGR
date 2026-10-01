@@ -11,6 +11,19 @@ behaviour toward the Mac.
 | **MCU board** | 20.0 × 23.5 mm — carries the AVR, plugs onto the interposer through a Hirose DF12 connector |
 | **J21 breakout** *(optional)* | sits between the two for development, bringing every PMGR signal out to 2.54 mm Dupont headers |
 
+## Photos
+
+<table>
+<tr>
+<td width="50%"><img src="images/original-pmgr-chip.jpg" alt="The original M50753 power manager on the logic board"><br><b>Before:</b> the original M50753 (Apple 342S0753-A) at the PMGR position.</td>
+<td width="50%"><img src="images/mcu-board-installed.jpg" alt="The replacement MCU board installed at the PMGR position"><br><b>After:</b> the replacement stack at the same position.</td>
+</tr>
+<tr>
+<td><img src="images/interposer-on-logic-board.jpg" alt="The interposer soldered to the M50753 footprint"><br>The interposer soldered to the original footprint. This first batch is labelled <code>PMGR Chip</code>; boards made from the current files say <code>J1</code>.</td>
+<td><img src="images/mcu-board-front.jpg" alt="MCU board, top side"><br>MCU board, top: the AVR128DB64 and the UPDI programming header <code>J2</code>.<br><br><img src="images/mcu-board-back.jpg" alt="MCU board, underside"><br>Underside: the DF12 socket <code>J1</code>, and the <code>BAT54S</code> + 1 kΩ clamp on the battery-sense line.</td>
+</tr>
+</table>
+
 ## Status — version 0.1, prototype
 
 **Working in a Macintosh Portable.** It boots, sleeps and wakes, shuts down and honours the reset
