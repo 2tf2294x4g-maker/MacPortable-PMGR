@@ -74,6 +74,9 @@ python3 tools/pmgr_flash_with_pram.py firmware/pmgr.hex <md5-prefix> - calib.arg
 - `-` means "write no PRAM image"; the Mac initialises PRAM itself.
 - `calib.args` is the board's calibration record — see [`BUILD.md`](BUILD.md) §7. On a brand-new
   board without one yet, leave the last argument off; the firmware then simply won't fast-charge.
+- ⭐ **The tool checks every input file before it erases anything** — the record's length, checksum
+  and values. A missing or bad file stops it with "NOTHING HAS BEEN FLASHED", so the board keeps its
+  existing record.
 - Look for **`write: OK | verify: matches`** and **`calibration record at 464 read back identical:
   True`**.
 

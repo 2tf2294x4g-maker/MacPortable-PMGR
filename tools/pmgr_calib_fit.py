@@ -38,6 +38,7 @@ it is there - and to check the published line against data it was not fitted to.
 """
 import argparse
 import csv
+import re
 import sys
 
 PUB_M, PUB_B, OFFSET = 100.0, 0.0, 512      # 2.50, superseding 106.98/-44.8
@@ -50,14 +51,40 @@ THRESHOLDS = (('LOW', 78), ('STAY_ASLEEP', 70), ('DEAD', 62), ('HICHG knee', 208
 MIN_SPAN_V = 0.25
 
 
+# ⛔ RESIDUAL LIMIT - the same 2.00 counts the record encoder (pmgr_calib_image.py RESID_MAX) and
+# the firmware (pmgr_calib.c) enforce. Review 2026-09-30: this tool PRINTED a fit but never judged
+# it, so data with ~11 counts of error "passed". A fit that the firmware would reject must be
+# rejected HERE, with a non-zero exit, before anyone builds a record from it.
+import os as _os
+sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import pmgr_calib_image as _CI
+MAX_RESID = _CI.RESID_MAX / 16          # 2.00 counts - the record's own limit
+RECORD_SPAN_V = _CI.SPAN_MIN / 1000     # 0.80 V - a narrower sweep can be CHECKED but not RECORDED
+
+
+def volts_column(fieldnames):
+    """⛔ The logger's --volts column was renamed in 2.388 ('pack_V' -> 'chan<N>_V'), which left this
+    tool loading ZERO rows from any new capture. Accept the old name and the new ones."""
+    if 'pack_V' in fieldnames:
+        return 'pack_V'
+    for f in fieldnames:
+        if re.fullmatch(r'v?chan\d+_V', f):
+            return f
+    return None
+
+
 def load(path):
     rows = []
     with open(path, newline='') as fh:
-        for r in csv.DictReader(fh):
+        rd = csv.DictReader(fh)
+        col = volts_column(rd.fieldnames or [])
+        if col is None:
+            sys.exit(f'  ⛔ no pack-voltage column in {path} (looked for pack_V, chan<N>_V, vchan<N>_V)')
+        for r in rd:
             if r.get('suspect'):                 # framing artefact, see 2.40
                 continue
             try:
-                v = float(r['pack_V']); lv = int(r['level'])
+                v = float(r[col]); lv = int(r['level'])
             except (ValueError, TypeError, KeyError):
                 continue
             rows.append((v, lv, r.get('flags', '')))
@@ -122,7 +149,7 @@ def main():
         print(f"       would still report a flattering R². This project has been")
         print(f"       wrong five times from exactly this - RIGOL-NOTES.md.")
         print(f"       Keep discharging: LOW (level 78) is the target.")
-        return
+        sys.exit(1)          # ⛔ a refusal must FAIL - it used to return success
     m, c, r2 = fit(vs, [lv for _, lv, _ in rows])
     fm, fb = m, c + OFFSET
     print(f"    raw = {fm:.2f}*V {fb:+.1f}      R² = {r2:.5f}")
@@ -135,6 +162,29 @@ def main():
         nv = ((lvl + OFFSET) - fb) / fm
         inside = '' if min(vs) <= pv <= max(vs) else '  (extrapolated)'
         print(f"    {name:14} {pv:9.3f}V {nv:9.3f}V {(nv-pv)*1000:+8.0f}{inside}")
+
+    # ---- the verdict: is this fit good enough to become a calibration record? ----
+    fres = [lv - (m * v + c) for v, lv, _ in rows]
+    worst_fit = max(abs(r) for r in fres)
+    print(f"\n  === residual of THIS fit ===")
+    print(f"    worst |residual|   {worst_fit:.2f} counts   (limit {MAX_RESID:.2f})")
+    if worst_fit > MAX_RESID:
+        print(f"    ⛔ REFUSED - the line does not describe this data. The firmware would reject a")
+        print(f"       record carrying this residual. Check the data before re-running:")
+        print(f"       - were these UNCORRECTED readings? (board flashed WITHOUT a record)")
+        print(f"       - was the DMM on the pack terminals, and the machine's load steady?")
+        sys.exit(1)
+    print(f"    ✅ within the limit.")
+    if span < RECORD_SPAN_V:
+        print(f"    ⛔ BUT the sweep spans {span:.3f} V; a calibration record needs at least {RECORD_SPAN_V:.2f} V.")
+        print(f"       Extend the sweep before building a record.")
+        sys.exit(1)
+    print(f"\n  ⚠️  ONLY VALID FOR UNCORRECTED READINGS. If the board already had a calibration record")
+    print(f"     when these levels were logged, they are corrected values and this fit would UNDO the")
+    print(f"     correction. Re-collect with the board flashed without a record.")
+    print(f"\n  Build the record with (measure --rail at J21-1; choose any --id for this hybrid/board pair):")
+    print(f"    python3 tools/pmgr_calib_image.py --a {fm:.2f} --b {fb:.2f} --resid {worst_fit:.2f} "
+          f"--span {span:.3f} --rail <+5V rail> --id <n> > calib.args")
 
 
 if __name__ == '__main__':

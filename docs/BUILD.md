@@ -98,12 +98,19 @@ Each machine's hybrid reads the battery slightly differently. The firmware uses 
 calibration record** (16 bytes, EEPROM address 464) to correct for it, and **refuses to fast-charge
 without a valid one.** The machine works without a record — it just charges slowly.
 
-1. **Collect pairs**: the pack voltage (DMM, at the pack terminals) against the level the PMGR
-   reports, across roughly 5.8–7.2 V, in both directions.
-2. **Fit and judge it**: `tools/pmgr_calib_fit.py <pairs.csv>`. It rejects a fit whose worst residual
-   exceeds 2 counts, or whose span is too narrow to test the line.
-3. **Build the record**:
-   `tools/pmgr_calib_image.py --a <slope> --b <offset> --resid <worst> --span <volts> --rail <+5V> --id <n> > calib.args`
+1. **Collect pairs from an UNCALIBRATED board.** Flash the firmware **without** a record first
+   (leave `calib.args` off — see [`PROGRAMMING.md`](PROGRAMMING.md)). Only then is the level the PMGR
+   reports the raw, uncorrected reading. ⛔ Readings taken from a board that already has a record are
+   corrected values, and fitting them would undo the correction.
+   Record the pack voltage (DMM, at the pack terminals) against that level, across **at least
+   0.80 V** — roughly 5.8–7.2 V — in both directions.
+2. **Fit and judge it**: `python3 tools/pmgr_calib_fit.py <pairs.csv>`. It **refuses**, with a
+   non-zero exit, a fit whose worst residual exceeds **2 counts** or whose span is under **0.80 V** —
+   the same limits the firmware enforces. When it passes, it prints the exact command for step 3,
+   with the slope, intercept, residual and span filled in.
+3. **Build the record** with that command, adding the +5 V rail you measured at J21-1 and any
+   pairing number for this hybrid/board pair:
+   `python3 tools/pmgr_calib_image.py --a <slope> --b <offset> --resid <worst> --span <volts> --rail <+5V> --id <n> > calib.args`
 4. **Flash with it**:
    `tools/pmgr_flash_with_pram.py firmware/pmgr.hex <md5-prefix> - calib.args`
    — it refuses a hex whose MD5 doesn't match, writes the record and reads it back.

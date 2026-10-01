@@ -54,7 +54,7 @@ are no Apple bytes in this repository.** For a byte-exact build, supply your own
 
 ```bash
 python3 tools_rom2h.py /path/to/pmuv1.bin > include/pmgr_rom_image.h
-make CFLAGS="$(CFLAGS) -DPMGR_FAITHFUL_ROM"
+make EXTRA_CFLAGS=-DPMGR_FAITHFUL_ROM
 ```
 
 ⛔ `include/pmgr_rom_image.h` **is** the ROM image. It is gitignored; never commit or publish it.

@@ -36,6 +36,60 @@ env = dict(os.environ, PATH=os.path.expanduser('~/Library/Python/3.11/bin') + ':
 base = ['-t', 'uart', '-u', PORT, '-d', 'avr128db64']
 md5 = hashlib.md5(open(HEX, 'rb').read()).hexdigest()
 if not md5.startswith(WANT): sys.exit(f'⛔ hex md5 {md5} != expected {WANT}')
+
+# ⛔⛔ VALIDATE EVERY INPUT BEFORE TOUCHING THE CHIP (review 2026-09-30). The flash below ERASES the
+# whole device, EEPROM included. This used to open ARGS and CALIB only AFTERWARDS, so a mistyped,
+# missing or malformed calib.args was discovered with the board's existing record already gone.
+# The record is checked with the ENCODER's own CRC and limits - one definition, not a second copy.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pmgr_calib_image as CI
+
+PRAM_MAX = 264                         # two 132-byte slots; 264-463 is the recorder, 464 the record
+
+def read_bytes(path, what):
+    try:
+        toks = open(path).read().split()
+    except OSError as e:
+        sys.exit(f'⛔ cannot read {what} "{path}": {e}\n   NOTHING HAS BEEN FLASHED.')
+    try:
+        vals = [int(t, 16) for t in toks]
+    except ValueError:
+        sys.exit(f'⛔ {what} "{path}" is not whitespace-separated hex bytes.\n   NOTHING HAS BEEN FLASHED.')
+    if not toks or any(not 0 <= x <= 255 for x in vals):
+        sys.exit(f'⛔ {what} "{path}" is empty or has a value outside 0x00-0xFF.\n   NOTHING HAS BEEN FLASHED.')
+    return toks, vals
+
+def record_errors(r):
+    if len(r) != CALIB_LEN:
+        return [f'{len(r)} bytes, expected {CALIB_LEN}']
+    u16 = lambda i: r[i] | (r[i + 1] << 8)
+    e = []
+    if u16(0) != CI.MAGIC:                 e.append(f'magic 0x{u16(0):04X} != 0x{CI.MAGIC:04X} - not a calibration record')
+    if r[2] != CI.VERSION:                 e.append(f'version {r[2]} != {CI.VERSION}')
+    if CI.crc16(r[:14]) != u16(14):        e.append('CRC does not match - the file is corrupt or hand-edited')
+    a = u16(4); b = u16(6) - (0x10000 if u16(6) & 0x8000 else 0)
+    if not CI.A_MIN <= a <= CI.A_MAX:      e.append(f'slope {a/256:.2f} outside {CI.A_MIN/256:.0f}-{CI.A_MAX/256:.0f}')
+    if abs(b) > CI.B_ABS_MAX:              e.append(f'intercept {b/256:.2f} beyond +/-{CI.B_ABS_MAX/256:.0f} counts')
+    if r[8] > CI.RESID_MAX:                e.append(f'residual {r[8]/16:.2f} counts > {CI.RESID_MAX/16:.2f}')
+    if u16(9) < CI.SPAN_MIN:               e.append(f'span {u16(9)/1000:.3f} V < {CI.SPAN_MIN/1000:.2f} V')
+    return e
+
+pram_toks = []
+if ARGS != '-':
+    pram_toks, pram_vals = read_bytes(ARGS, 'PRAM image')
+    if len(pram_vals) > PRAM_MAX:
+        sys.exit(f'⛔ PRAM image is {len(pram_vals)} bytes; the PRAM area is {PRAM_MAX}. It would overwrite '
+                 f'the areas above it.\n   NOTHING HAS BEEN FLASHED.')
+cal_toks = []
+if CALIB:
+    cal_toks, cal_vals = read_bytes(CALIB, 'calibration record')
+    errs = record_errors(cal_vals)
+    if errs:
+        sys.exit(f'⛔ calibration record "{CALIB}" REFUSED - the firmware would reject it:\n   - '
+                 + '\n   - '.join(errs) + '\n   NOTHING HAS BEEN FLASHED; the board still holds its old record.')
+print('inputs checked: hex md5 ' + md5[:8]
+      + ('' if ARGS == '-' else f', PRAM image {len(pram_toks)} B')
+      + (f', calibration record valid (id {cal_vals[3]})' if CALIB else ', NO calibration record'))
 def run(a, must_succeed=True):
     """⛔ CHECK THE EXIT STATUS. This returned only stdout+stderr, so a pymcuprog
     that FAILED but still printed parseable bytes was treated as success - the
@@ -72,7 +126,7 @@ if ARGS == '-':
     print('PRAM: none written (erased) - the Mac initialises it')
     vals, n = [], 0
 else:
-    vals = open(ARGS).read().split(); n = len(vals)
+    vals = pram_toks; n = len(vals)          # validated above, before the erase
 if n:
     run(['write'] + base + ['-m', 'eeprom', '-o', '0', '-l'] + vals)   # one list argument per byte
 r = run(['read'] + base + ['-m', 'eeprom', '-o', '0', '-b', str(n + 132)])
@@ -113,7 +167,7 @@ def ee_read(off, ln):
     return out[:ln]
 
 if CALIB:
-    cv = open(CALIB).read().split()
+    cv = cal_toks                             # validated above, before the erase
     if len(cv) != CALIB_LEN:
         sys.exit(f'⛔ calibration image is {len(cv)} bytes, expected {CALIB_LEN}')
     run(['write'] + base + ['-m', 'eeprom', '-o', str(CALIB_BASE), '-l'] + cv)

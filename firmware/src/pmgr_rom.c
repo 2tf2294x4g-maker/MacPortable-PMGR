@@ -18,7 +18,7 @@
  * them from a LOCAL copy at build time:
  *
  *     python3 tools_rom2h.py /path/to/pmuv1.bin > include/pmgr_rom_image.h
- *     make CFLAGS="$(CFLAGS) -DPMGR_FAITHFUL_ROM"
+ *     make EXTRA_CFLAGS=-DPMGR_FAITHFUL_ROM
  *
  * The generator verifies size (6144) and CRC32 (01DAE148) and refuses to emit
  * anything else, so a wrong file fails loudly instead of baking silent garbage
