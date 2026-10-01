@@ -86,6 +86,19 @@ it, a machine that is shut down may not wake from the keyboard (seen 7 times out
 established). A programmer left plugged in back-feeds the board, so switching off alone is not
 enough.
 
+## Resetting PRAM
+
+**Pulling the battery does not reset PRAM on this board** — PRAM is kept in the AVR's EEPROM and
+survives power removal. Try `Cmd-Opt-P-R` at startup first. If PRAM holds settings that stop the
+Mac booting at all, **re-flash through the flash tool** (step 4), with the same `calib.args`:
+
+- every flash **erases the whole EEPROM**, which clears PRAM, and the Mac writes fresh defaults on
+  the next start;
+- the tool then **writes the calibration record back**.
+
+⛔ **Don't erase the EEPROM any other way.** The calibration record lives there too (bytes 464–479),
+and losing it silently disables fast charge. Then unplug the programmer and power-cycle, as always.
+
 ## Troubleshooting
 
 | symptom | likely cause |
@@ -96,3 +109,4 @@ enough.
 | The flash tool refuses the file | The MD5 prefix doesn't match the hex — rebuild, or check you're flashing the file you meant. |
 | Boots normally but never fast-charges | No valid calibration record — flash again through the tool with `calib.args`. |
 | Machine won't wake from the keyboard after flashing | No real power cycle yet — unplug the programmer and disconnect power. |
+| Bad settings survive pulling the battery | Expected — PRAM is kept in EEPROM. See "Resetting PRAM" above. |

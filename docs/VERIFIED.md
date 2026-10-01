@@ -36,6 +36,24 @@ a second, **unmodified Portable** used as the reference. **It has not been insta
 - Eight host-side unit-test suites cover the protocol, PRAM save, ADC handling, calibration and the
   charging state machine.
 
+## Deliberate differences from the original
+
+**PRAM survives power removal.** The original keeps PRAM in the chip's RAM, so taking all power away
+clears it. This replacement keeps PRAM in the AVR's EEPROM, so it **comes back after the battery has
+been pulled.** The clock still behaves like the original: a power loss zeroes it, and the Mac forgets
+the date. (Keeping the clock in EEPROM was not an option — writing it every second would wear the
+EEPROM out in about a day.)
+
+| PRAM recovery | works? |
+|---|---|
+| `Cmd-Opt-P-R` at startup | ✅ unchanged |
+| blank or corrupt PRAM — the Mac reinitialises it | ✅ unchanged |
+| **pulling the battery / removing all power** | ⛔ **no longer clears PRAM** |
+
+The case that is lost is narrow: PRAM that *looks* valid but holds settings that stop the Mac
+booting. The fix is then the programmer, not the battery — see "Resetting PRAM" in
+[`PROGRAMMING.md`](PROGRAMMING.md).
+
 ## ⚠️ Not yet shown — read this before relying on it unattended
 
 - **Charge current has never been measured.** The voltages behave correctly, but the actual current
