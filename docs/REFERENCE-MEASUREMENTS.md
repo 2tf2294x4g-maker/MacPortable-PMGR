@@ -139,11 +139,16 @@ spread is why each board gets its own calibration record ([`BUILD.md`](BUILD.md)
 The same levels as the original, applied to the calibrated reading:
 
 ```
-  knee         7.20 V   below it, fast charge runs; crossing it starts the top-off timer
-  LOW          5.90 V   the low-battery condition the Mac warns about
-  STAY_ASLEEP  5.82 V   below it, the machine can no longer be woken
-  DEAD         5.74 V   the PMGR puts the machine to sleep itself
+  level         ROM value (pmuv1.bin)                  calibrated   what it does
+  knee          208  literal compare, cmp #720-512     7.20 V       below it, fast charge runs; crossing it starts the top-off timer
+  LOW           78   lowBatteryLevel  = 590-512        5.90 V       the low-battery condition the Mac warns about
+  STAY_ASLEEP   70   computed: (78>>1) + (62>>1)       5.82 V       below it, the machine can no longer be woken
+  DEAD          62   deadBatteryLevel = 574-512        5.74 V       the PMGR puts the machine to sleep itself
 ```
+
+The **values** are Apple's, read from the original M50753 firmware; the ROM stores no voltages.
+The **voltages** are our calibration of those values on an unmodified Portable (original PMGR
+and original hybrid). `HICHGLevel` (200) is a separate stored setting, not the knee.
 
 ## Cut-off
 
