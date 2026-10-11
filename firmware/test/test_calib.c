@@ -494,6 +494,27 @@ int main(void)
     EE[PMGR_CALIB_EE_BASE + 9] ^= 0xFFu;     /* span byte torn AFTER the crc was made */
     ok(!pmgr_calib_load(), "N1.5  torn record (valid magic, stale CRC) -> INVALID");
 
+    /* ---- 2.413 the HYBRID field (byte 13) ---------------------------------- */
+    c = good(); c.hybrid = PMGR_HYBRID_RECREATION; put(&c);
+    ok(pmgr_calib_load() && pmgr_calib_hybrid() == PMGR_HYBRID_RECREATION,
+       "H.1   v2 record, hybrid=recreation -> VALID, reports RECREATION");
+    c = good(); c.hybrid = PMGR_HYBRID_ORIGINAL; put(&c);
+    ok(pmgr_calib_load() && pmgr_calib_hybrid() == PMGR_HYBRID_ORIGINAL,
+       "H.2   v2 record, hybrid=original -> VALID, reports ORIGINAL");
+    c = good(); c.hybrid = 2u; put(&c);
+    ok(!pmgr_calib_load() && pmgr_calib_hybrid() == PMGR_HYBRID_ORIGINAL,
+       "H.3   v2 record, hybrid=2 (unknown) -> INVALID, and ORIGINAL is assumed");
+    c = good(); c.version = PMGR_CALIB_VERSION_V1; c.hybrid = 0u; put(&c);
+    ok(pmgr_calib_load() && pmgr_calib_hybrid() == PMGR_HYBRID_ORIGINAL,
+       "H.4   a version-1 record (made before the field) is still VALID, as ORIGINAL");
+    c = good(); c.version = PMGR_CALIB_VERSION_V1; c.hybrid = 1u; put(&c);
+    ok(!pmgr_calib_load(), "H.5   a version-1 record claiming a hybrid -> INVALID");
+    c = good(); c.version = 3u; put(&c);
+    ok(!pmgr_calib_load(), "H.6   an unknown version -> INVALID");
+    sim_erase();
+    ok(!pmgr_calib_load() && pmgr_calib_hybrid() == PMGR_HYBRID_ORIGINAL,
+       "H.7   no record -> ORIGINAL (Apple's thresholds)");
+
     /* ---- N1.6 slope out of range, CRC GOOD -------------------------------- */
     c = good(); c.a_q8 = 12800u; put(&c);    /* slope 50 - re-CRC'd, so only the bound catches it */
     ok(!pmgr_calib_load(), "N1.6  a out of range -> INVALID despite a valid CRC");

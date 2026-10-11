@@ -251,6 +251,64 @@ int main(void)
     ok_todo(!s0 && !s1 && !s2 && s3,
             "off-off-off-ON: a low level does not bypass the N=3 rule");
 
+    /* ---- 2.415 UNPLUG MID-CHARGE - FAITHFUL TO APPLE, deliberately ------------------
+     * External review (public cdd4ce3) found that unplugging mid-charge resets the state but leaves
+     * the HICHG pin and hichg_on set. That IS Apple's behaviour: the no-charger path ends at
+     * .LAB_EAD5 `ldm #0,$21` and never runs `clb HICHG,Port_P1`. Greg's decision (2026-10-08): stay
+     * faithful. These assertions PIN that behaviour, so a change to it is a decision, not an accident.
+     * Harmless in practice: with no charger nothing flows through Q1, and a re-plug starts a fresh
+     * cycle from state 0 that asserts HICHG anyway (MEASUREMENTS 2.415). */
+    printf("\nunplug mid-charge - faithful to Apple (2.415)\n");
+    enter_charging();
+    ok(hichg_asserted() && hichg_state() == 1u, "precondition: fast charging, state 1");
+    set_charger(false);
+    pmgr_tick_1s();
+    ok(hichg_state() == 0u, "unplug -> state 0 (pmgr.asm .LAB_EAD5)");
+    ok(hichg_asserted(), "unplug -> HICHG pin LEFT SET, as Apple's original (no clb HICHG on this path)");
+    ok((pmgr_mem_read(0x001Du) & (1u << 1)) != 0u, "unplug -> hichg_on LEFT SET, as Apple's original");
+    set_charger(true);
+    pmgr_tick_1s();
+    ok(hichg_asserted() && hichg_state() == 1u, "re-plug -> a FRESH cycle (state 0 -> 1), HICHG asserted");
+
+    /* ---- 2.418 HICHG ACROSS SLEEP - the wake restore must not undo it ---------------
+     * HICHG shares PORTE with KBD_RST* and STOP_CLK, and the wake writes back the Port_P1 byte saved at
+     * sleep entry. Apple mirrors every HICHG write into that byte ($14 bit 5, pmgr.asm 480/511);
+     * pmgr_wake_p1() models it. Without it, #1 on 2026-10-11 was plugged in asleep and never fast
+     * charged (state 1, pin clear) - and a charge ENDING while asleep would be re-asserted on wake. */
+    printf("\nHICHG across sleep - the wake restore (2.418)\n");
+    {
+        /* A COLD START on battery, as #1 that morning. Not enter_charging() + unplug: an unplug
+         * mid-charge LEAVES the pin set (2.415), which would hide the failure. */
+        stub_reset();
+        pmgr_handlers_init();
+        set_charger(false);
+        stub_scale_ok = true;
+        stub_battery_level = 200u;
+        pmgr_tick_1s();                             /* on battery, state 0 */
+        uint8_t saved = HICHG_PORT.OUT;             /* sleep entry */
+        ok((saved & HICHG_bm) == 0u, "precondition: HICHG clear in the byte saved at sleep");
+        set_charger(true);
+        pmgr_tick_1s();                             /* plugged in while parked */
+        ok(hichg_asserted() && hichg_state() == 1u, "plug-in while parked -> HICHG set, state 1");
+        uint8_t back = pmgr_wake_p1(saved);
+        HICHG_PORT.OUT = back;                      /* the wake */
+        ok(hichg_asserted(), "wake KEEPS HICHG set (the 2026-10-11 failure: it was cleared)");
+        ok((uint8_t)(back & ~HICHG_bm) == (uint8_t)(saved & ~HICHG_bm),
+           "wake restores every OTHER Port_P1 bit from the saved byte");
+    }
+    {
+        enter_charging();                           /* awake, fast charging */
+        uint8_t saved = HICHG_PORT.OUT;             /* sleep entry */
+        ok((saved & HICHG_bm) != 0u, "precondition: HICHG set in the byte saved at sleep");
+        stub_battery_level = 220u;                  /* past the knee -> state 2, then counts down */
+        for (int i = 0; i < 2000 && hichg_state() != 3u; i++) pmgr_tick_1s();
+        ok(hichg_state() == 3u && !hichg_asserted(), "charge ends while parked -> state 3, HICHG clear");
+        HICHG_PORT.OUT = pmgr_wake_p1(saved);       /* the wake */
+        ok(!hichg_asserted(), "wake does NOT re-assert a finished fast charge (the dangerous direction)");
+        ticks(5);
+        ok(!hichg_asserted() && hichg_state() == 3u, "and nothing re-asserts it afterwards");
+    }
+
     printf("\n  %d pass, %d fail", pass, fail);
     if (todo) printf("   (%d pre-registered, and now MANDATORY - see below)", todo);
     printf("\n");

@@ -55,9 +55,16 @@ ifeq ($(PARK_SLEEP),1)
 PARK_FLAG = -DPMGR_PARK_SLEEP -DPMGR_PARK_VREF_ALWAYSON
 endif
 
+# ⛔ `make HYBRID=` is GONE (2.413): the hybrid is chosen per board in the calibration record
+# (tools/pmgr_calib_image.py --hybrid original|recreation), so ONE image serves both.
+ifdef HYBRID
+$(error HYBRID= no longer exists - choose the hybrid in the calibration record: pmgr_calib_image.py --hybrid)
+endif
+
 CFLAGS   = -mmcu=$(MCU) -DF_CPU=$(F_CPU) -Os -std=gnu11 \
            -Wall -Wextra -Werror -Wundef -Wshadow \
-           -ffunction-sections -fdata-sections -Iinclude $(ADB_HS_FLAG) $(PARK_FLAG) $(EXTRA_CFLAGS)
+           -ffunction-sections -fdata-sections -Iinclude $(ADB_HS_FLAG) $(PARK_FLAG) $(EXTRA_CFLAGS) \
+           -MMD -MP
 LDFLAGS  = -mmcu=$(MCU) -Wl,--gc-sections $(EXTRA_LDFLAGS)
 
 SRC      = $(wildcard src/*.c)
@@ -248,10 +255,15 @@ fuses: check-pymcuprog
 	@echo "  ✅ all fuses verified - now run 'make flash'"
 
 clean:
-	rm -f $(OBJ) $(TARGET).elf $(TARGET).hex $(CONFIG_STAMP)
+	rm -f $(OBJ) $(OBJ:.o=.d) $(TARGET).elf $(TARGET).hex $(CONFIG_STAMP)
 	rm -f $(TARGET)-SELFTEST-BENCH-ONLY.elf $(TARGET)-SELFTEST-BENCH-ONLY.hex
 
 check:
 	@sh test/hostcheck.sh
 
 .PHONY: all flash fuses check-pymcuprog clean check
+
+# ⭐ HEADER DEPENDENCIES (2.415, external review). Before this, a changed header (thresholds, pins) left
+# the old objects in place - `make` said "Nothing to be done" and an outdated image could be flashed.
+# -MMD -MP has the compiler write src/*.d listing every header each object uses; -include reads them.
+-include $(OBJ:.o=.d)

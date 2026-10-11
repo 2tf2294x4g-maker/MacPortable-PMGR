@@ -8,7 +8,7 @@
 #   3A 02 46 01  ->  3A 01 00     (xPRAM read, location $46)
 # recorded in MEASUREMENTS.md 2.9.
 
-all: run run_save run_latch run_adb_latch run_deadline run_adc run_charging run_calib run_calib_cross
+all: run run_save run_latch run_adb_latch run_deadline run_adc run_charging run_calib run_calib_cross run_report
 
 # ⭐ pmgr_pram.c now compiles UNMODIFIED natively: off-AVR it takes its EEPROM
 # primitives from include/pmgr_ee_hal.h, implemented by eesim.c (a simulated
@@ -107,3 +107,7 @@ cross_calib: cross_calib.c ../src/pmgr_calib.c ../include/pmgr_calib.h eesim.c M
 
 run_calib_cross: cross_calib
 	./cross_calib.sh
+
+# 2.411/2.413: the reported-level remap - identity for an original hybrid, the map for a recreation one.
+run_report: test_report.c ../include/pmgr_report.h ../include/pmgr_adc.h Makefile
+	cc -std=c11 -Wall -Wextra -Werror -I../include -o tr test_report.c && ./tr

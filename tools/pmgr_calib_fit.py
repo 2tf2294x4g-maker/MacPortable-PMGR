@@ -182,9 +182,10 @@ def main():
     print(f"\n  ⚠️  ONLY VALID FOR UNCORRECTED READINGS. If the board already had a calibration record")
     print(f"     when these levels were logged, they are corrected values and this fit would UNDO the")
     print(f"     correction. Re-collect with the board flashed without a record.")
-    print(f"\n  Build the record with (measure --rail at J21-1; choose any --id for this hybrid/board pair):")
+    print(f"\n  Build the record with (measure --rail at J21-1; choose any --id for this hybrid/board pair;")
+    print(f"  ⛔ --hybrid is REQUIRED: original = Apple's hybrid, recreation = e.g. Androda's - BUILD.md §7):")
     print(f"    python3 tools/pmgr_calib_image.py --a {fm:.2f} --b {fb:.2f} --resid {worst_fit:.2f} "
-          f"--span {span:.3f} --rail <+5V rail> --id <n> > calib.args")
+          f"--span {span:.3f} --rail <+5V rail> --id <n> --hybrid <original|recreation> > calib.args")
 
 
 if __name__ == '__main__':

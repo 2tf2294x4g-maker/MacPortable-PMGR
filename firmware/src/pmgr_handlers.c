@@ -3,6 +3,7 @@
 #include "pmgr_pins.h"
 #include "pmgr_rom.h"
 #include "pmgr_adc.h"
+#include "pmgr_report.h"
 #include "pmgr_bus.h"
 #include "pmgr_adb.h"
 #include "pmgr_pram.h"
@@ -35,6 +36,14 @@
 
 static uint8_t s_power_flags;   /* $1D */
 static uint8_t s_battery_level; /* $1E - inferred, see PORT-AUDIT.md */
+
+/* ⭐ THE BATTERY THRESHOLDS FOR THE FITTED HYBRID (2.413). Apple's 78 / 62 with an original hybrid or no
+ * valid record; the recreation values (pmgr_adc.h) when the calibration record says so. STAY_ASLEEP is
+ * computed from whichever pair is in force, exactly as Apple computes it (pmgr.asm 438-445). */
+static bool hybrid_recreation(void) { return pmgr_calib_hybrid() == PMGR_HYBRID_RECREATION; }
+static uint8_t thr_low(void)  { return hybrid_recreation() ? PMGR_RECREATION_LOW_LEVEL  : PMGR_ADC_LOW_LEVEL; }
+static uint8_t thr_dead(void) { return hybrid_recreation() ? PMGR_RECREATION_DEAD_LEVEL : PMGR_ADC_DEAD_LEVEL; }
+static uint8_t thr_stay(void) { return (uint8_t)((thr_low() >> 1) + (thr_dead() >> 1)); }
 static uint8_t s_ref5v_level;   /* $1F */
 static uint8_t s_sec_divider;
 #ifdef PMGR_ADB_HOST_SERVICE
@@ -435,6 +444,31 @@ bool pmgr_cold_should_park(void)
  * this loop depends on. So if a timer or ring wake misbehaves, suspect this loop
  * or the 1 Hz compare at :596-610 BEFORE suspecting the opcodes - they are better
  * evidenced than most of this file. */
+/* ⛔⛔ HICHG MUST SURVIVE THE WAKE RESTORE - MEASUREMENTS 2.418.
+ *
+ * HICHG is PE4, on the same port as KBD_RST* and STOP_CLK, so restoring the
+ * saved Port_P1 byte on wake also restores HICHG AS IT WAS AT SLEEP ENTRY. The
+ * HICHG machine keeps running while parked (sleep_wait_tick -> tick_core), so a
+ * charger plugged in while asleep sets the pin (state 0 -> 1), the wake then
+ * CLEARS it, and state 1 never sets it again: no fast charge until the brick is
+ * unplugged. Seen on #1 on 2026-10-11 (flags CHG, never HICHG).
+ *
+ * ⛔ THE OTHER DIRECTION IS THE DANGEROUS ONE: a fast charge that ENDS while
+ * parked (state 3, pin cleared) would be RE-ASSERTED by the wake, with state 3
+ * never clearing it again - fast charge until unplugged.
+ *
+ * Apple avoids both: every HICHG write is mirrored into the saved byte,
+ *     479 seb HICHG,Port_P1 / 480 seb 5,$14
+ *     510 clb HICHG,Port_P1 / 511 clb 5,$14
+ * which we used to list as "not modelled, role unexplained". Taking the pin's
+ * CURRENT value here is equivalent: $14 bit 5 equals the pin at sleep entry,
+ * and afterwards changes only together with it. */
+uint8_t pmgr_wake_p1(uint8_t saved_p1)
+{
+    return (uint8_t)((saved_p1 & (uint8_t)~HICHG_bm) |
+                     (KBD_RST_N_PORT.OUT & HICHG_bm));
+}
+
 void pmgr_sleep(void)
 {
     /* 1330  clb DISP_BLANK,Port_P4 - display off */
@@ -638,9 +672,9 @@ void pmgr_sleep(void)
     /* 1381-1383  ADBStatus &= 4 */
     pmgr_adb_wake_reset();
 
-    /* 1384-1387  restore the saved port bytes */
+    /* 1384-1387  restore the saved port bytes - HICHG excepted, see below */
     SYS_PWR_N_PORT.OUT = saved_p0;
-    KBD_RST_N_PORT.OUT = saved_p1;
+    KBD_RST_N_PORT.OUT = pmgr_wake_p1(saved_p1);
 
     /* 1388-1393  wait for the key to be RELEASED, servicing the tick.
      * ⭐ MEASURED 224 ms (2.11-bis) - this is the operator's finger, and the
@@ -918,7 +952,7 @@ void pmgr_cmd_battery(pmgr_packet_t *pkt)
      * warnings fire at the wrong voltages - which is exactly what 2.361
      * observed. Identity with no valid record. */
     uint8_t reply[3] = { s_power_flags,
-                         pmgr_calib_to_nominal(s_battery_level),
+                         pmgr_report_level(pmgr_calib_to_nominal(s_battery_level), hybrid_recreation()),  /* 2.411/2.413 */
                          s_ref5v_level };
 
     /* pmgr.asm 1284: bcs .exit - if the transfer FAILED the host never received
@@ -1528,7 +1562,7 @@ uint8_t pmgr_mem_read(uint16_t addr)
      *   :438-445  $20 = (lowBatteryLevel>>1) + (deadBatteryLevel>>1) = 70
      * It appears in no equate because the original derives it at runtime. We
      * hold it as PMGR_ADC_STAY_ASLEEP_LEVEL; same value, same meaning. */
-    case 0x0020u: return PMGR_ADC_STAY_ASLEEP_LEVEL;
+    case 0x0020u: return thr_stay();                /* 2.413: the thresholds in force */
 
     /* ⭐ $21/$22/$23 - the HICHG state machine, mapped 2026-08-31 once the
      * state actually existed. Resolved by tracing every use site in the binary
@@ -1553,8 +1587,8 @@ uint8_t pmgr_mem_read(uint16_t addr)
 
     case 0x002Eu: return pmgr_contrast_get();       /* $2E contrast */
 
-    case 0x0071u: return PMGR_ADC_LOW_LEVEL;        /* lowBatteryLevel  */
-    case 0x0072u: return PMGR_ADC_DEAD_LEVEL;       /* deadBatteryLevel */
+    case 0x0071u: return thr_low();                 /* lowBatteryLevel  */
+    case 0x0072u: return thr_dead();                /* deadBatteryLevel */
     case 0x0073u: return PMGR_ADC_HICHG_LEVEL;      /* HICHGLevel       */
 
     /* ---- I/O registers -------------------------------------------------- */
@@ -2293,9 +2327,10 @@ void pmgr_tick_1s(void)
      * substitute (EXP-645: standby 6.85-6.95 V, cycle 7.30-7.40 V), so this is
      * not an artefact of one datasheet.
      *
-     * ⚠️ NOT MODELLED: `seb 5,$14` / `clb 5,$14` alongside the HICHG enable.
-     * $14 is the reply-buffer region and its role here is unexplained, so it
-     * is left alone rather than guessed at. */
+     * ⭐ `seb 5,$14` / `clb 5,$14` alongside the HICHG writes: $14 is the
+     * Port_P1 byte saved at sleep entry (pmgr.asm 1350-1351) and restored on
+     * wake (1386-1387); bit 5 is HICHG. Modelled by pmgr_wake_p1() - see the
+     * ⛔⛔ note above it (MEASUREMENTS 2.418). */
     /* ⛔⛔ THE CALIBRATION GATE - design/HYBRID-CALIBRATION.md §5, N1.9 of 2.349.
      *
      * ⭐ WHY THIS IS HERE AND NOT A WARNING. Apple's overflow guard only raises a
@@ -2428,7 +2463,7 @@ void pmgr_tick_1s(void)
         s_power_flags &= (uint8_t)~(PF_BATTERY_LOW | PF_BATTERY_DEAD);
     } else {
         bool low_was = (s_power_flags & PF_BATTERY_LOW) != 0u;
-        bool low_now = level_below(s_battery_level, PMGR_ADC_LOW_LEVEL + 512u);
+        bool low_now = level_below(s_battery_level, (uint16_t)(thr_low() + 512u));
 
         if (low_now != low_was) {
             pmgr_set_int_flag(PMGR_INT_BATTERY_bm);      /* 450 / 454 - no  */
@@ -2453,12 +2488,12 @@ void pmgr_tick_1s(void)
          * the machine refused ~30 s of keypresses while PMGCLK_F kept bursting,
          * then woke instantly at 6.5 V. That is :1366 skipping every wake test
          * while this bit is set. */
-        if (level_below(s_battery_level, PMGR_ADC_STAY_ASLEEP_LEVEL + 512u))
+        if (level_below(s_battery_level, (uint16_t)(thr_stay() + 512u)))
             s_power_flags |= PF_STAY_ASLEEP;             /* 457 */
         else
             s_power_flags &= (uint8_t)~PF_STAY_ASLEEP;   /* 422 clears it */
 
-        if (level_below(s_battery_level, PMGR_ADC_DEAD_LEVEL + 512u)) {
+        if (level_below(s_battery_level, (uint16_t)(thr_dead() + 512u))) {
             s_power_flags |= PF_BATTERY_DEAD;            /* 460 */
 
             /* 461-463  bbs 6,$0 / bbc VIA_TEST / jmp Sleep - the PMGR puts the

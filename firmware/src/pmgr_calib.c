@@ -60,7 +60,7 @@ void pmgr_calib_encode(const pmgr_calib_t *c, uint8_t *o)
     o[8] = c->resid_q4;
     wr16(o + 9,  c->span_mv);
     wr16(o + 11, c->rail_mv);
-    o[13] = c->reserved;
+    o[13] = c->hybrid;
     wr16(o + 14, pmgr_calib_crc(o, 14u));
 }
 
@@ -77,11 +77,19 @@ bool pmgr_calib_decode(const uint8_t *in, pmgr_calib_t *c)
     c->resid_q4   = in[8];
     c->span_mv    = rd16(in + 9);
     c->rail_mv    = rd16(in + 11);
-    c->reserved   = in[13];
+    c->hybrid     = in[13];
     c->crc        = rd16(in + 14);
 
     if (c->magic   != PMGR_CALIB_MAGIC)     return false;   /* N1.4 absent, N1.5 torn */
-    if (c->version != PMGR_CALIB_VERSION)   return false;
+    /* 2.413: v2 carries the hybrid type; a v1 record is still honoured, as ORIGINAL, so a board
+     * calibrated before the field existed keeps its calibration - and must not claim a hybrid. */
+    if (c->version == PMGR_CALIB_VERSION_V1) {
+        if (c->hybrid != PMGR_HYBRID_ORIGINAL) return false;
+    } else if (c->version == PMGR_CALIB_VERSION) {
+        if (c->hybrid > PMGR_HYBRID_RECREATION) return false;
+    } else {
+        return false;
+    }
     if (c->crc     != pmgr_calib_crc(in, 14u)) return false; /* N1.3 */
     if (c->a_q8 < PMGR_CALIB_A_MIN || c->a_q8 > PMGR_CALIB_A_MAX) return false;  /* N1.6 */
     if (c->b_q8 >  PMGR_CALIB_B_ABS_MAX ||
@@ -108,6 +116,8 @@ bool pmgr_calib_load(void)
 }
 
 bool pmgr_calib_valid(void) { return s_valid; }
+
+uint8_t pmgr_calib_hybrid(void) { return s_valid ? s_rec.hybrid : PMGR_HYBRID_ORIGINAL; }
 
 
 void pmgr_calib_note_gated(void) { s_gated = true; }

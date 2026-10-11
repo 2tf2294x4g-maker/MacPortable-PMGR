@@ -65,7 +65,9 @@ def record_errors(r):
     u16 = lambda i: r[i] | (r[i + 1] << 8)
     e = []
     if u16(0) != CI.MAGIC:                 e.append(f'magic 0x{u16(0):04X} != 0x{CI.MAGIC:04X} - not a calibration record')
-    if r[2] != CI.VERSION:                 e.append(f'version {r[2]} != {CI.VERSION}')
+    if r[2] not in (CI.VERSION, CI.VERSION_V1): e.append(f'version {r[2]} not {CI.VERSION_V1} or {CI.VERSION}')
+    if r[2] == CI.VERSION_V1 and r[13] != 0: e.append('a version-1 record must not claim a hybrid (byte 13 must be 0)')
+    if r[2] == CI.VERSION and r[13] not in CI.HYBRIDS.values(): e.append(f'hybrid byte {r[13]} is not 0 (original) or 1 (recreation)')
     if CI.crc16(r[:14]) != u16(14):        e.append('CRC does not match - the file is corrupt or hand-edited')
     a = u16(4); b = u16(6) - (0x10000 if u16(6) & 0x8000 else 0)
     if not CI.A_MIN <= a <= CI.A_MAX:      e.append(f'slope {a/256:.2f} outside {CI.A_MIN/256:.0f}-{CI.A_MAX/256:.0f}')

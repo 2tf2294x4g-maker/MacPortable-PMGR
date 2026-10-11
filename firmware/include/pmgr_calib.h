@@ -27,7 +27,14 @@
 #define PMGR_CALIB_EE_BASE   464u
 #define PMGR_CALIB_SIZE       16u
 #define PMGR_CALIB_MAGIC   0xCA1Bu
-#define PMGR_CALIB_VERSION     1u
+#define PMGR_CALIB_VERSION     2u        /* 2.413: byte 13 = hybrid type. Version 1 is still read, as 'original'. */
+#define PMGR_CALIB_VERSION_V1  1u
+/* ⭐ WHICH HYBRID IS FITTED (2.413) - chosen by the installer when the record is made
+ * (tools/pmgr_calib_image.py --hybrid), because the board cannot tell (2.410's notes).
+ * It selects the battery thresholds and the level reported to the Mac (pmgr_adc.h,
+ * pmgr_report.h). No valid record -> ORIGINAL, Apple's own values. */
+#define PMGR_HYBRID_ORIGINAL   0u
+#define PMGR_HYBRID_RECREATION 1u
 
 /* The nominal line, raw = 100*V, in the same fixed-point form as a record's.
  * ⛔ This is what an UNCALIBRATED unit uses, and it is NOT this pairing's fit -
@@ -57,7 +64,7 @@ typedef struct {
     uint16_t rail_mv;        /* ⭐ the rail DURING the sweep. §6: the A/D is
                               * ratiometric to it and the record cannot know if
                               * it later moves. Recorded so a change is checkable. */
-    uint8_t  reserved;
+    uint8_t  hybrid;         /* PMGR_HYBRID_ORIGINAL / _RECREATION; must be ORIGINAL in a v1 record */
     uint16_t crc;            /* CRC-16/CCITT reflected over the 14 bytes before it */
 } pmgr_calib_t;
 
@@ -75,6 +82,9 @@ uint16_t pmgr_calib_threshold(uint16_t raw_nominal);
 /* ⭐ The inverse, for the level REPORTED TO THE MAC (§5: the battery indicator
  * must agree with what charging decides). Identity with no valid record. */
 uint8_t pmgr_calib_to_nominal(uint8_t level_measured);
+
+/* The fitted hybrid as the record says (2.413). ORIGINAL with no valid record. */
+uint8_t pmgr_calib_hybrid(void);
 
 /* ⭐ §5's VISIBLE "uncalibrated" FLAG, exposed through the $E8 memory view at
  * PMGR_CALIB_STATUS_ADDR. §5 requires the gate to be VISIBLE, not merely

@@ -134,6 +134,10 @@ On the unmodified machine, the voltage at the PMGR's battery-sense input follows
 Hybrids differ: another machine read **tenths of a volt** lower at the same pack voltage. That
 spread is why each board gets its own calibration record ([`BUILD.md`](BUILD.md) §7).
 
+**Apple's design** (*Apple Guide to the Macintosh Family Hardware*, 2nd ed., pp. 266–267): the battery-sense amplifier maps **5.12–7.68 V onto the
+0–5 V A/D range** — nominally 100 A/D steps per volt, starting at 5.12 V. The measured line above has the
+same 5.12 V offset and a gain about 4 % higher.
+
 ## The firmware's battery levels
 
 The same levels as the original, applied to the calibrated reading:
@@ -150,11 +154,53 @@ The **values** are Apple's, read from the original M50753 firmware; the ROM stor
 The **voltages** are our calibration of those values on an unmodified Portable (original PMGR
 and original hybrid). `HICHGLevel` (200) is a separate stored setting, not the knee.
 
+The calibration agrees with Apple's own figures (*Apple Guide to the Macintosh Family Hardware*, 2nd ed., pp. 266–267): the Power Manager puts the
+machine to sleep below **5.74 V**, and fast charge runs until **7.2 V**, then for the same time
+again. Because the nominal A/D scale starts at 5.12 V with 100 steps per volt, Apple's constants read as volts × 100 —
+`574-512` is 5.74 V, `590-512` 5.90 V, `720-512` 7.20 V.
+
 ## Cut-off
 
 The unmodified machine's hybrid **cuts off between 5.61 and 5.70 V** at the battery input, and
-comes back on at the next step up — essentially no hysteresis. If your machine dies well above
+comes back on at the next step up — essentially no hysteresis. Apple specifies **5.65 V**, with
+power restored above 5.65 V (*Apple Guide to the Macintosh Family Hardware*, 2nd ed., pp. 266–267). If your machine dies well above
 this, suspect the hybrid or the battery wiring before the PMGR.
+
+## Low battery — what you should see
+
+As the battery runs down, Mac OS shows Apple's own three warnings, then puts itself to sleep. Plug
+in the power adapter (or fit a charged battery) and press a key: the machine **wakes where it left
+off**, with nothing lost. This was checked on the development machine with the board set for its
+hybrid (`--hybrid`, [`BUILD.md`](BUILD.md) §7).
+
+**1. Reserve power** — the battery bars are down to about one of eight.
+
+![You are now running on reserve power](../images/battery-alert-1-reserve-power.png)
+
+**2. A quarter of the reserve left.** In the menu bar, a battery icon flashes in place of the
+Apple menu (left: the battery icon; right: the Apple logo it alternates with).
+
+![The battery icon flashing in place of the Apple menu](../images/battery-alert-menu-flash.png)
+
+![Only 25% of the battery's reserve power remains](../images/battery-alert-2-25-percent.png)
+
+**3. No reserve left** — a ten-second countdown, then Mac OS puts the machine to sleep itself.
+
+![No battery reserve power remains - Good Night](../images/battery-alert-3-no-reserve-good-night.png)
+
+Measured at the battery input on the development machine (recreation hybrid, set as
+`recreation`): warning 1 at about 6.19 V, warning 2 at about 6.12 V, warning 3 and sleep at about
+6.07 V — all above that hybrid's 5.92 V cut-off. With an original hybrid, set as `original`, the same
+sequence follows Apple's own levels (warning at 5.90 V, sleep by 5.74 V).
+
+On a **real pack** (rather than a bench supply) the sequence is the same, but the warnings come
+earlier in the pack's life: its voltage is nearly flat around 6.2 V under load, so the first warning
+appeared soon after starting from a part-charged pack, and Mac OS put the machine to sleep about an
+hour later. The second and third warnings are timed by Mac OS itself, not set by a level. With the
+charger connected, a keypress resumes the machine.
+
+⚠️ **If the machine just switches off with no warning**, the board is probably set for the wrong
+hybrid: a recreation hybrid set as `original` cuts the power before the warnings can appear.
 
 ## Charging — measured on the development machine
 
@@ -169,20 +215,15 @@ the knee, then 42 minutes of float. The left run used the firmware before the ba
 interlock was added; the charging logic is otherwise the same. Phases are read from the PMGR's own
 flags; the knee marker is where its reported level reached 208 (7.20 V).
 
-> ⚠️ **Not yet confirmed as normal.** Two features of these curves may come from **this particular
-> machine** — its **replacement hybrid** or its **logic board** — rather than from a healthy charger:
->
-> - **The drop when fast charge ends is small** — about 40 mV. When a charger genuinely falls back to
->   a trickle, the pack voltage should fall noticeably.
-> - **The float level is high** — about 7.23 V, or 2.41 V per cell, where the Cyclon float band is
->   2.25–2.30 V per cell (6.75–6.90 V). Held there for long periods, a lead-acid pack ages faster.
+> ⭐ **The float level here is the replacement hybrid's.** That hybrid regulates the float itself,
+> holding the fast-charge transistor Q1 partly on, and it settles at about **7.21 V** at the pack
+> (about 0.08–0.10 A). Apple specifies **6.94–7.16 V at 20 °C**, falling about 7.5 mV per °C
+> (*Apple Guide to the Macintosh Family Hardware*, 2nd ed., pp. 266–267); an original hybrid floated
+> about **6.98 V** on the same pack. This is why the drop when fast charge ends is small.
 >
 > The **step changes** in the left panel (around 27, 50 and 73 minutes) are probably the Mac's own
 > power use changing while it ran, since the charger supplies both the machine and the pack. That
 > has not been checked.
->
-> Use the **sequence** — fast charge, knee, top-off, termination — as the reference. Treat the
-> **float level** as unconfirmed until it has been measured on a machine with an original hybrid.
 
 A 3-cell Cyclon pack, the machine's own charger, two supervised charges:
 
@@ -195,26 +236,23 @@ A 3-cell Cyclon pack, the machine's own charger, two supervised charges:
 
 A DMM at the pack agreed with the logged readings to about 15 mV.
 
-### 🔧 Under active investigation
+### Explained since earlier versions
 
-On the development machine, the fast-charge bypass transistor **Q1** (the IRF9Z30 beside the
-charger jack) is held **on** by the replacement hybrid even with no charger connected; on the
-unmodified machine it is off. If Q1 also stays on **after fast charge ends**, charging would never
-fall back to the slow path through R10 — which would explain both the small termination drop and
-the high float above.
+Earlier versions listed the development machine's high float and its Q1 held on as unexplained,
+possibly a logic-board fault. Both turned out to be the replacement hybrid's design:
 
-**The cause is not yet known, and it may be this machine's logic board rather than the hybrid.**
-The board was repaired after earlier damage. The checks so far found Q1's gate pull-up intact and
-every line the PMGR drives normal, but they do not rule the board out. It is being followed up with
-the hybrid's maker in parallel. Planned checks:
+- **Q1 with no charger:** the hybrid's float comparator is powered only from the charger, so with
+  no charger Q1's gate is left low and Q1 reads as on. With no charger there is nothing for it to
+  pass, so this is harmless.
+- **Float:** with the charger in, that comparator holds Q1 partly on to regulate the float at about
+  7.21 V, instead of switching to the slow path through R10 as an original hybrid does.
 
-1. **Q1's gate-to-source voltage during fast charge, then again after it ends.** Still about −5 V
-   afterwards would mean Q1 never turns off.
-2. **The same charge on a machine with an original hybrid**, for a normal curve to compare against.
-3. **Charge current through the whole cycle**, with a DC clamp meter — never yet measured.
+**Charge current** is now measured (clamp meter on the battery lead, one pack): about 0.30 A at the
+start of fast charge with the Mac running, tapering toward the knee; about 0.73 A with the Mac
+asleep; 0.08–0.10 A once floating.
 
-Results will be added here. If you have a Portable with an original hybrid, a logged charge with
-the pack voltage at termination would help.
+If you have a Portable with an original hybrid, a logged charge with the pack voltage at
+termination would still help.
 
 ## Board checks
 

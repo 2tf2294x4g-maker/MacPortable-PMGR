@@ -19,7 +19,9 @@ gives a readable error at the desk instead of a silent gate engagement on the
 bench. The FIRMWARE remains the authority - pmgr_calib.c checks them again."""
 import argparse, sys
 
-MAGIC, VERSION = 0xCA1B, 1
+MAGIC, VERSION = 0xCA1B, 2      # 2.413: v2 = byte 13 is the HYBRID type
+VERSION_V1 = 1                    # still accepted by the firmware, as 'original'
+HYBRIDS = {'original': 0, 'recreation': 1}
 A_MIN, A_MAX   = 23040, 28160          # nominal 25600 +/- 10 %
 B_ABS_MAX      = 25600                 # |b| <= 100 counts
 RESID_MAX      = 32                    # <= 2.00 counts, in 1/16ths  (2.338)
@@ -44,7 +46,7 @@ def wr16(v):
     return [v & 0xFF, (v >> 8) & 0xFF]          # little-endian, as the AVR stores
 
 
-def build(a, b, resid, span_v, rail_v, pairing):
+def build(a, b, resid, span_v, rail_v, pairing, hybrid):
     a_q8 = int(round(a * 256))
     b_q8 = int(round(b * 256))
     resid_q4 = int(round(resid * 16))
@@ -59,6 +61,8 @@ def build(a, b, resid, span_v, rail_v, pairing):
         errs.append(f'residual {resid} counts > 2.00 - THE SWEEP ITSELF DID NOT PASS (2.338)')
     if span_mv < SPAN_MIN:
         errs.append(f'span {span_v} V < 0.80 V - THE SWEEP ITSELF DID NOT PASS (2.339)')
+    if hybrid not in HYBRIDS:
+        errs.append(f'hybrid {hybrid!r} must be one of {sorted(HYBRIDS)}')
     if not (0 <= pairing <= 255):
         errs.append(f'pairing id {pairing} out of range')
     if errs:
@@ -66,7 +70,7 @@ def build(a, b, resid, span_v, rail_v, pairing):
 
     o  = wr16(MAGIC) + [VERSION, pairing]
     o += wr16(a_q8) + wr16(b_q8 & 0xFFFF)
-    o += [resid_q4] + wr16(span_mv) + wr16(rail_mv) + [0]
+    o += [resid_q4] + wr16(span_mv) + wr16(rail_mv) + [HYBRIDS[hybrid]]
     assert len(o) == 14, len(o)
     return o + wr16(crc16(o))
 
@@ -81,7 +85,11 @@ if __name__ == '__main__':
     p.add_argument('--rail',  type=float, required=True, help='⭐ rail DURING the sweep, volts')
     p.add_argument('--id',    type=int,   default=1, help='pairing id (§6: a hybrid swap invalidates '
                                                           'the record and the board CANNOT detect it)')
+    # ⛔ REQUIRED, no default (2.413): the board cannot tell which hybrid is fitted, and the wrong choice
+    # either kills the machine without warning (recreation hybrid set as original) or sleeps it early.
+    p.add_argument('--hybrid', required=True, choices=sorted(HYBRIDS),
+                   help='which hybrid is FITTED: original (Apple) or recreation (e.g. Androda) - see BUILD.md §7')
     p.add_argument('--hex', action='store_true', help='print as plain hex, for diffing')
     a = p.parse_args()
-    rec = build(a.a, a.b, a.resid, a.span, a.rail, a.id)
+    rec = build(a.a, a.b, a.resid, a.span, a.rail, a.id, a.hybrid)
     print(''.join(f'{x:02x}' for x in rec) if a.hex else ' '.join(f'0x{x:02X}' for x in rec))

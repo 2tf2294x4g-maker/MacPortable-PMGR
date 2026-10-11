@@ -122,6 +122,13 @@ bool pmgr_cold_should_park(void);
 
 void pmgr_sleep(void);
 
+/* The Port_P1 byte to write back on wake (pmgr.asm 1386-1387), given the byte
+ * saved at sleep entry (1350-1351). Everything comes from the saved byte EXCEPT
+ * HICHG, which keeps its CURRENT value - Apple mirrors every HICHG write into
+ * the saved byte ($14 bit 5, pmgr.asm 480 / 511) for exactly this reason.
+ * Exposed for the host tests (MEASUREMENTS 2.418). */
+uint8_t pmgr_wake_p1(uint8_t saved_p1);
+
 /* pmgr.asm 1702-1714, the $FFF4 vector. Call from the main loop. Does nothing
  * unless the reset switch is currently pressed; otherwise asserts SYS_RST*,
  * waits out the switch (debounce is the switch's, 320 ms measured - poll it,

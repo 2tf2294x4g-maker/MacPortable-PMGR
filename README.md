@@ -33,6 +33,11 @@ It has **only been installed and tested in a Macintosh Portable M5120** (the ori
 model), with a second, unmodified Portable kept as the reference. **The backlit Portable (M5126) has not
 been tried.**
 
+**0.1.12 fixes how fast charge is handled across sleep** — on 0.1.11 and earlier, don't let the
+Mac sleep during a fast charge. It also supports **replacement (recreation) hybrids**, which cut the
+power at a higher battery voltage: the calibration record says which hybrid is fitted, and the
+low-battery warnings are placed to suit it. See [`docs/VERIFIED.md`](docs/VERIFIED.md).
+
 It is a **prototype**. Some parts of the charging behaviour have not been characterised on
 hardware yet, and the PowerBook 100 (which uses the same PMGR) has not been tried. Read
 [`docs/VERIFIED.md`](docs/VERIFIED.md) for exactly what has and has not been shown — before relying

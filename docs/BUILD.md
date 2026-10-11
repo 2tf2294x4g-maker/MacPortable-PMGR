@@ -108,9 +108,22 @@ without a valid one.** The machine works without a record — it just charges sl
    non-zero exit, a fit whose worst residual exceeds **2 counts** or whose span is under **0.80 V** —
    the same limits the firmware enforces. When it passes, it prints the exact command for step 3,
    with the slope, intercept, residual and span filled in.
-3. **Build the record** with that command, adding the +5 V rail you measured at J21-1 and any
-   pairing number for this hybrid/board pair:
-   `python3 tools/pmgr_calib_image.py --a <slope> --b <offset> --resid <worst> --span <volts> --rail <+5V> --id <n> > calib.args`
+3. **Build the record** with that command, adding the +5 V rail you measured at J21-1, any
+   pairing number for this hybrid/board pair, and **which hybrid is fitted**:
+   `python3 tools/pmgr_calib_image.py --a <slope> --b <offset> --resid <worst> --span <volts> --rail <+5V> --id <n> --hybrid <original|recreation> > calib.args`
+
+   **`--hybrid` is required and has no default.**
+
+   | Fitted hybrid | Choose | Low-battery warning | The Mac sleeps | Cut-off (the hybrid's own) |
+   |---|---|---|---|---|
+   | Apple's **original** | `original` | 5.90 V | 5.74 V | 5.65 V |
+   | a **recreation** (e.g. Androda's) | `recreation` | ~6.20 V | ~6.05 V | ~5.92 V on the board tested |
+
+   A recreation hybrid cuts the power at a higher voltage than Apple's, to protect the battery.
+   With `recreation` the board warns and sleeps above that cut-off, and reports the battery level
+   to the Mac on Apple's scale, so the Mac's own bars and warnings follow. ⛔ Choosing
+   `original` with a recreation hybrid lets the machine die without warning; choosing
+   `recreation` with an original hybrid sleeps it early.
 4. **Flash with it**:
    `tools/pmgr_flash_with_pram.py firmware/pmgr.hex <md5-prefix> - calib.args`
    — it refuses a hex whose MD5 doesn't match, writes the record and reads it back.

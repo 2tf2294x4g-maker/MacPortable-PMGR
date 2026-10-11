@@ -13,8 +13,9 @@ fails=0
 # a       b        resid  span   rail    id      <- engineering units
 # a_q8    b_q8     rq4    mv     mv      id      <- the same, pre-converted
 check() {
-  py=$(python3 $PY --a "$1" --b "$2" --resid "$3" --span "$4" --rail "$5" --id "$6" --hex)
-  c=$($CROSS "$7" "$8" "$9" "${10}" "${11}" "$6")
+  h=${12:-original}; hn=0; [ "$h" = recreation ] && hn=1
+  py=$(python3 $PY --a "$1" --b "$2" --resid "$3" --span "$4" --rail "$5" --id "$6" --hybrid "$h" --hex)
+  c=$($CROSS "$7" "$8" "$9" "${10}" "${11}" "$6" "$hn")
   if [ "$py" = "$c" ]; then
     echo "  PASS  a=$1 b=$2  $py"
   else
@@ -36,6 +37,9 @@ check 101.00  40.00 0.50 1.200 5.300 42  25856  10240  8 1200 5300
 check 100.00   0.00 0.00 0.900 5.250 1   25600      0  0 900 5250
 # boundary: exactly the accepted residual and span
 check  99.35  -23.26 2.00 0.800 5.251 1  25434 -5955 32 800 5251
+# 2.413: the hybrid byte, both values
+check 99.35  -23.26 1.19 0.915 5.251 1   25434 -5955 19 915 5251 recreation
+check 100.00   0.00 0.00 0.900 5.250 1   25600      0  0 900 5250 original
 
 if [ $fails -eq 0 ]; then echo "  0 failure(s)"; else echo "  ⛔ $fails disagreement(s)"; fi
 exit $fails

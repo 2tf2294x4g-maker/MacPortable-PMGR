@@ -62,6 +62,17 @@
  */
 #define PMGR_ADC_LOW_LEVEL    78u
 #define PMGR_ADC_DEAD_LEVEL   62u
+/* ⭐ APPLE'S CONSTANTS (above) apply with an ORIGINAL hybrid. A RECREATION hybrid gets these instead - chosen AT BOOT
+ * from the calibration record's hybrid field (2.413), not at build time (2.407's `make HYBRID=` option is gone).
+ * A recreation hybrid's cut-off sits ABOVE Apple's warning and sleep points: it measured 5.92 to 5.95 V on Androda's
+ * 2023/04 board (2.382, 2.408) against Apple's 5.65 V (Guide to the Macintosh Family Hardware 2e, pp. 266-267). Androda
+ * keeps it high on purpose to protect the lead-acid pack, so the PMGR's thresholds move up instead:
+ *     LOW 108 = 6.20 V    DEAD 93 = 6.05 V    STAY_ASLEEP still computed: (108>>1)+(93>>1) = 100 = 6.12 V
+ * Validated on #1 (2.409-2.412) together with the reported-level remap in pmgr_report.h. */
+#define PMGR_RECREATION_LOW_LEVEL   108u
+#define PMGR_RECREATION_DEAD_LEVEL   93u
+_Static_assert(PMGR_RECREATION_LOW_LEVEL > PMGR_RECREATION_DEAD_LEVEL, "LOW must be above DEAD");
+_Static_assert(PMGR_RECREATION_LOW_LEVEL < 200u, "LOW must be below the knee region");
 /* HICHGLevel, $73 in the M50753 map. `ldm #712-512,HICHGLevel` at ResetEntry -
  * the source writes the difference, so the stored byte is 200. */
 #define PMGR_ADC_HICHG_LEVEL 200u

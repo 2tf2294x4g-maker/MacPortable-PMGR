@@ -28,6 +28,21 @@ a second, **unmodified Portable** used as the reference. **It has not been insta
   was added.
 - With the interlock, across a full charge and 42 minutes of float that followed, fast charge
   switched off **once**, at the expected point, with no unexpected transitions in 702 decoded samples.
+- **Charge current**, with a clamp meter on the battery lead (one pack, single runs): about **0.30 A**
+  at the start of fast charge, tapering to about 0.21 A by the knee with the Mac running; about
+  **0.73 A** with the Mac asleep, which leaves the charger's whole output for the pack. In float, about
+  0.08–0.10 A once settled.
+- The two battery-reading fault pads (`DBG1`, `DBG2`) were read after a complete charge: **no fault**
+  had occurred during it.
+
+**Sleep with the charger.** *(fixed in 0.1.12 — see below)*
+- A fast charge that **ends while the Mac is asleep stays off** after the Mac wakes, and a charger
+  **plugged in while the Mac is asleep still fast-charges** after it wakes. Both were checked on the
+  fast-charge line itself (hybrid pin 39) as well as in the PMGR's flags.
+
+**Low battery on a real pack** (development machine, replacement hybrid, board set as `recreation`).
+- Mac OS showed its three low-battery warnings, then put the machine to sleep itself, well above the
+  hybrid's cut-off. With the charger connected, a keypress **resumed** it rather than restarting.
 
 **Other.**
 - Current drawn with the Mac switched off: **about 9–11 mA**.
@@ -54,20 +69,32 @@ The case that is lost is narrow: PRAM that *looks* valid but holds settings that
 booting. The fix is then the programmer, not the battery — see "Resetting PRAM" in
 [`PROGRAMMING.md`](PROGRAMMING.md).
 
+## ⛔ Fixed in 0.1.12 — update if you run 0.1.11 or earlier
+
+**Fast charge was mishandled across sleep.** The fast-charge line shares a port with other lines
+that the firmware restores when the Mac wakes, and the restore also put fast charge back to what it
+was *before* the Mac slept:
+
+- a charger plugged in while the Mac was asleep **did not fast-charge** after it woke (it still
+  charged on the hybrid's slower path); and
+- ⛔ a fast charge that **finished while the Mac was asleep was switched back on** when it woke, and
+  stayed on until the charger was unplugged.
+
+The original chip avoids this by updating its saved copy whenever it switches fast charge; 0.1.12
+does the equivalent. **On 0.1.11 or earlier, do not let the Mac sleep during a fast charge.**
+
 ## ⚠️ Not yet shown — read this before relying on it unattended
 
-- **Charge current has never been measured.** The voltages behave correctly, but the actual current
-  profile through a charge is unknown.
-- **Float is a single 42-minute observation**, voltage only. In it the pack stayed near 7.23 V
-  (about 2.41 V per cell, above the Cyclon float band). Whether that settles lower, and what current
-  sustains it, is not known — and it may reflect the development machine — its replacement hybrid or its logic
-  board — rather than normal behaviour; see "Under active investigation" in
-  [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md).
+- **The float level depends on the hybrid.** On the development machine's replacement hybrid the pack
+  floats at about **7.21 V** (about 2.40 V per cell), set by the hybrid's own float regulator — a
+  little above Apple's 6.94–7.16 V. An original hybrid floated about 0.23 V lower on the same pack.
+  How the PMGR behaves over long float periods with an original hybrid has not been logged.
 - **What switching off fast charge mid-charge does to the current** has not been measured. The design
   assumes it reduces the rate; that is supported by one older observation, on a different battery.
-- **A brief battery-reading fault during charging** would not necessarily show in the data that was
-  logged; the firmware latches such faults on two test pads (`DBG1`, `DBG2`) for that purpose, but
-  they have not yet been watched through a charge.
+- **The low-battery warnings on a replacement hybrid may come early.** On a real pack, the first
+  warning appeared within minutes of starting from a part-charged pack, and the machine then ran
+  for about another hour before Mac OS put it to sleep, because the pack's voltage is nearly flat
+  around 6.2 V under load. The levels may be lowered in a later version.
 - **The fast-charge timer's top-off** does not run for exactly as long as the code predicts, by an
   amount that varies between runs. Charging still terminates; the discrepancy is unexplained.
 - **Standby current of the original chip** has not been measured for comparison, so whether 9–11 mA
@@ -77,11 +104,15 @@ booting. The fix is then the programmer, not the battery — see "Resetting PRAM
 ## About the development machine
 
 The development Portable carries a **third-party replacement hybrid** (the power-supply module the
-PMGR works with). Compared with an original hybrid, that one cuts the machine off at a higher
-battery voltage (about 5.94 V) and holds the fast-charge bypass transistor (Q1) switched on with no
-charger connected. Both **appear not to come from this PMGR** — every PMGR-driven line measured the
-same as on the original machine — but **neither is settled**. They may come from the hybrid, or from
-that machine's **logic board**, which was repaired after earlier damage. Both possibilities are being
-followed up, including with the hybrid's maker. They are
-noted here because if your machine has a replacement hybrid, its charging and cut-off may differ
-from an original's too.
+PMGR works with), made by Androda. It differs from an original hybrid in two ways, **both by its
+design** and neither caused by this PMGR:
+
+- **It cuts the machine off at a higher battery voltage — about 5.92 V** (an original: about
+  5.65 V), to protect the lead-acid pack. That is above Apple's warning point, so with Apple's
+  thresholds the machine would switch off with no warning. The calibration record therefore says
+  which hybrid is fitted, and with `recreation` the PMGR moves its warning and sleep points above
+  the cut-off (see [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md)).
+- **It regulates the float itself**, holding the fast-charge transistor (Q1) partly on, at about
+  7.21 V at the pack.
+
+If your machine has a replacement hybrid, set the calibration record to match it.
