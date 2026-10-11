@@ -37,6 +37,8 @@ been tried.**
 Mac sleep during a fast charge. It also supports **replacement (recreation) hybrids**, which cut the
 power at a higher battery voltage: the calibration record says which hybrid is fitted, and the
 low-battery warnings are placed to suit it. See [`docs/VERIFIED.md`](docs/VERIFIED.md).
+⛔ **Upgrading from 0.1.11 or earlier: rebuild your `calib.args` with `--hybrid` before flashing**
+— see [`docs/BUILD.md`](docs/BUILD.md) §7. 0.1.13's flash tool refuses the old record format.
 
 It is a **prototype**. Some parts of the charging behaviour have not been characterised on
 hardware yet, and the PowerBook 100 (which uses the same PMGR) has not been tried. Read

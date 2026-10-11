@@ -199,6 +199,70 @@ static void all_thresholds(void)
 }
 
 
+/* ---- H.8 the RECREATION thresholds through the REAL tick (review 2026-10-11) ----------------------
+ * H.1-H.7 test the hybrid field and test_report.c tests the reported-level map, each on its own. This
+ * drives the WHOLE decision path - record -> thr_*() -> calibration conversion -> level_below() ->
+ * PowerFlags and the DEAD sleep request - through pmgr_tick_1s(), with a NON-identity fit, so a
+ * threshold applied on the wrong scale, or the wrong hybrid's threshold, fails here. */
+static uint8_t settle(uint8_t level)
+{
+    stub_battery_level = level;
+    ticks(12);                                   /* the IIR halves the gap each tick */
+    return pmgr_mem_read(0x1Du);                 /* PowerFlags */
+}
+
+static void recreation_thresholds_through_the_tick(void)
+{
+    struct { const char *nm; uint8_t nominal; uint8_t flag; } t[] = {
+        {"LOW",         PMGR_RECREATION_LOW_LEVEL,  PF_BATTERY_LOW},
+        {"STAY_ASLEEP", (uint8_t)((PMGR_RECREATION_LOW_LEVEL >> 1) + (PMGR_RECREATION_DEAD_LEVEL >> 1)),
+                                                    PF_STAY_ASLEEP},
+        {"DEAD",        PMGR_RECREATION_DEAD_LEVEL, PF_BATTERY_DEAD},
+    };
+    int moved = 0;
+    for (unsigned i = 0; i < sizeof t / sizeof t[0]; i++) {
+        sim_erase();
+        { pmgr_calib_t g = good(); g.hybrid = PMGR_HYBRID_RECREATION; put(&g); }
+        pmgr_calib_load();
+        stub_reset(); pmgr_handlers_init();
+        stub_scale_ok = true;
+        VIA_TEST_PORT.IN |= VIA_TEST_bm;         /* VIA_TEST high: the DEAD backstop may park */
+        charger(false);
+        (void)settle(200u);                      /* start well above every threshold */
+        (void)pmgr_sleep_requested();            /* discard anything stale */
+
+        uint8_t b = (uint8_t)(pmgr_calib_threshold((uint16_t)(t[i].nominal + 512u)) - 512u);
+        if (b != t[i].nominal) moved++;
+        printf("        %-11s recreation level %3u -> this unit's raw boundary %3u\n", t[i].nm, t[i].nominal, b);
+
+        uint8_t f = settle(b);
+        ok((f & t[i].flag) == 0u, t[i].nm[0] == 'L' ? "H.8   LOW: at the converted boundary -> flag CLEAR"
+                                  : t[i].nm[0] == 'S' ? "H.8   STAY_ASLEEP: at the converted boundary -> flag CLEAR"
+                                  : "H.8   DEAD: at the converted boundary -> flag CLEAR");
+        f = settle((uint8_t)(b - 1u));
+        ok((f & t[i].flag) != 0u, t[i].nm[0] == 'L' ? "H.8   LOW: one count below -> flag SET"
+                                  : t[i].nm[0] == 'S' ? "H.8   STAY_ASLEEP: one count below -> flag SET"
+                                  : "H.8   DEAD: one count below -> flag SET");
+        if (t[i].flag == PF_BATTERY_DEAD)
+            ok(pmgr_sleep_requested(), "H.8   DEAD: the PMGR's own sleep backstop is REQUESTED");
+    }
+    ok(moved == 3, "H.8   the fit MOVED all three boundaries (a non-identity calibration was exercised)");
+
+    /* ⛔ NEGATIVE CONTROL: the SAME fit with an ORIGINAL record must not warn at the recreation LOW
+     * boundary - otherwise this test cannot tell the two hybrids apart. */
+    sim_erase();
+    { pmgr_calib_t g = good(); g.hybrid = PMGR_HYBRID_ORIGINAL; put(&g); }
+    pmgr_calib_load();
+    stub_reset(); pmgr_handlers_init();
+    stub_scale_ok = true; charger(false);
+    (void)settle(200u);
+    uint8_t b = (uint8_t)(pmgr_calib_threshold((uint16_t)(PMGR_RECREATION_LOW_LEVEL + 512u)) - 512u);
+    uint8_t f = settle((uint8_t)(b - 1u));
+    ok((f & (PF_BATTERY_LOW | PF_BATTERY_DEAD)) == 0u,
+       "H.8   ORIGINAL record, same level: NO LOW/DEAD (Apple's thresholds are in force)");
+}
+
+
 /* N1.15 - P1's ADC interlock after reconciliation. ⛔ The POINT of these cases is
  * that the BEHAVIOUR is P1's and the BOOKKEEPING is not: no state 4 reaches $21. */
 static void reconciled_interlock(void)
@@ -548,6 +612,7 @@ int main(void)
 
     /* ---- N1.14 EVERY threshold, not just the knee -------------------------- */
     all_thresholds();
+    recreation_thresholds_through_the_tick();
 
     /* ---- N1.13 §5's VISIBLE FLAG ------------------------------------------
      * ⛔ §5 requires the gate to be VISIBLE, not merely effective. After 2.352

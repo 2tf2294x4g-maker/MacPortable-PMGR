@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Flash a PMGR image and write known-good PRAM in one step (MEASUREMENTS 2.156, 2.165).
 
-  pmgr_flash_with_pram.py <hex> <md5 prefix> <eeprom args file> [calib args file]
+  pmgr_flash_with_pram.py <hex> <md5 prefix> <eeprom args file> [calib args file] [--v1-is-original]
 
 Every flash erases EEPROM (EESAVE clear), leaving PRAM blank - the ROM's own
 initialisation then often fails to land. This writes a PRAM image straight back.
@@ -27,6 +27,13 @@ stops fast-charging after a routine reflash is a bug report waiting to happen.
 exactly "flash WITHOUT it, and confirm the gate engages"."""
 import subprocess, os, sys, hashlib
 
+# ⛔ A VERSION-1 RECORD SAYS NOTHING ABOUT THE HYBRID (review 2026-10-11). The firmware still honours one,
+# as ORIGINAL, so boards calibrated before the field existed keep working - but re-flashing a RECREATION
+# board with its old v1 calib.args would succeed and silently drop the recreation thresholds (the machine
+# then dies at the hybrid's cut-off with no warning). So a v1 record is REFUSED unless this flag says the
+# board really has an ORIGINAL hybrid. Recreation owners: regenerate with `--hybrid recreation`.
+V1_OK = '--v1-is-original' in sys.argv
+if V1_OK: sys.argv.remove('--v1-is-original')
 if len(sys.argv) not in (4, 5): sys.exit(__doc__)
 HEX, WANT, ARGS = sys.argv[1:4]
 CALIB = sys.argv[4] if len(sys.argv) == 5 else None
@@ -86,6 +93,14 @@ cal_toks = []
 if CALIB:
     cal_toks, cal_vals = read_bytes(CALIB, 'calibration record')
     errs = record_errors(cal_vals)
+    if not errs and cal_vals[2] == CI.VERSION_V1 and not V1_OK:
+        sys.exit(f'⛔ calibration record "{CALIB}" is VERSION 1 - it does not say which hybrid is fitted, and the\n'
+                 f'   firmware treats it as ORIGINAL (Apple\'s thresholds).\n'
+                 f'   - RECREATION hybrid: regenerate it, same numbers plus --hybrid recreation:\n'
+                 f'       python3 tools/pmgr_calib_image.py <same arguments> --hybrid recreation > calib.args\n'
+                 f'     Flashing the v1 record would let the machine die at the hybrid\'s cut-off with NO warning.\n'
+                 f'   - ORIGINAL hybrid: regenerate with --hybrid original, or re-run with --v1-is-original.\n'
+                 f'   NOTHING HAS BEEN FLASHED; the board still holds its old record.')
     if errs:
         sys.exit(f'⛔ calibration record "{CALIB}" REFUSED - the firmware would reject it:\n   - '
                  + '\n   - '.join(errs) + '\n   NOTHING HAS BEEN FLASHED; the board still holds its old record.')

@@ -130,6 +130,13 @@ without a valid one.** The machine works without a record — it just charges sl
 
 ⛔ **Every flash erases EEPROM.** Always flash through the tool with the record, or the board
 silently returns to "no fast charge".
+
+> ⛔ **Upgrading from 0.1.11 or earlier? Rebuild your `calib.args` first.** Records made before 0.1.12
+> are **version 1** and do not say which hybrid is fitted; the firmware treats them as `original`.
+> **With a recreation hybrid that loses the recreation thresholds — the machine then dies at the
+> hybrid's cut-off with no warning.** Re-run step 3 with the same numbers plus `--hybrid recreation`
+> (or `--hybrid original`). The flash tool now **refuses a version-1 record**; if your board really
+> has an original hybrid you may instead add `--v1-is-original` to the flash command.
 As after any programmer operation, **unplug the programmer and power-cycle** before starting the
 machine (step 4).
 
