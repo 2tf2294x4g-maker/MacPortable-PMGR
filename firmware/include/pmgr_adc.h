@@ -63,16 +63,29 @@
 #define PMGR_ADC_LOW_LEVEL    78u
 #define PMGR_ADC_DEAD_LEVEL   62u
 /* ⭐ APPLE'S CONSTANTS (above) apply with an ORIGINAL hybrid. A RECREATION hybrid gets these instead - chosen AT BOOT
- * from the calibration record's hybrid field (2.413), not at build time (2.407's `make HYBRID=` option is gone).
- * A recreation hybrid's cut-off sits ABOVE Apple's warning and sleep points: it measured 5.92 to 5.95 V on Androda's
- * 2023/04 board (2.382, 2.408) against Apple's 5.65 V (Guide to the Macintosh Family Hardware 2e, pp. 266-267). Androda
- * keeps it high on purpose to protect the lead-acid pack, so the PMGR's thresholds move up instead:
- *     LOW 108 = 6.20 V    DEAD 93 = 6.05 V    STAY_ASLEEP still computed: (108>>1)+(93>>1) = 100 = 6.12 V
- * Validated on #1 (2.409-2.412) together with the reported-level remap in pmgr_report.h. */
-#define PMGR_RECREATION_LOW_LEVEL   108u
-#define PMGR_RECREATION_DEAD_LEVEL   93u
+ * from the calibration record's hybrid field (2.413), not at build time. Two settings only, by decision (2.426): ORIGINAL
+ * or RECREATION; `--hybrid` stays REQUIRED when the record is made (no default - a recreation board set as original dies
+ * at the hybrid's cut-off with no warning, 2.408 / 2.421).
+ *
+ * A recreation hybrid's cut-off sits ABOVE Apple's warning and sleep points: 5.92-5.95 V on Androda's 2023/04 board
+ * (2.382, 2.408), ~5.91 V under load on a real pack (2.421), against Apple's 5.65 V (Guide to the Macintosh Family
+ * Hardware 2e, pp. 266-267). Androda keeps it high on purpose, so the PMGR's thresholds move up instead:
+ *     LOW 98 = 6.10 V    DEAD 90 = 6.02 V    STAY_ASLEEP computed: (98>>1)+(90>>1) = 94 = 6.06 V     (nominal scale)
+ * ⭐ 2.426: lowered from 0.1.12's 108 / 93 (6.20 / 6.05 V), which on a real pack warned with ~4.6 h left (2.421). 98 / 90
+ * validated on a Cyclon and an EXP-645 (2.422-2.425): Mac OS warned, slept itself ~25 min later with the backstop never
+ * reached, and resumed; charge and termination normal. ⚠️ What USERS see is set mostly by Mac OS's response to the
+ * remapped level (it warned before LOW on one run), not by these numbers alone.
+ * Validated on #1 together with the reported-level remap in pmgr_report.h. */
+#define PMGR_RECREATION_LOW_LEVEL    98u
+#define PMGR_RECREATION_DEAD_LEVEL   90u
+/* NOT USED BY THE FIRMWARE: 0.1.12-0.1.13's values, kept so documents describing them stay checkable (check_docs). */
+#define PMGR_RECREATION_LEGACY_LOW_LEVEL  108u
+#define PMGR_RECREATION_LEGACY_DEAD_LEVEL  93u
+#define PMGR_RECREATION_CUTOFF_LEVEL       80u  /* ~5.92 V nominal - the hybrid's own cut-off (2.408, 2.421) */
 _Static_assert(PMGR_RECREATION_LOW_LEVEL > PMGR_RECREATION_DEAD_LEVEL, "LOW must be above DEAD");
 _Static_assert(PMGR_RECREATION_LOW_LEVEL < 200u, "LOW must be below the knee region");
+_Static_assert(PMGR_RECREATION_DEAD_LEVEL >= PMGR_RECREATION_CUTOFF_LEVEL + 5u,
+               "DEAD must sit at least 5 counts (~50 mV) above the recreation hybrid's cut-off");
 /* HICHGLevel, $73 in the M50753 map. `ldm #712-512,HICHGLevel` at ResetEntry -
  * the source writes the difference, so the stored byte is 200. */
 #define PMGR_ADC_HICHG_LEVEL 200u

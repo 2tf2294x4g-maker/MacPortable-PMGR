@@ -91,10 +91,13 @@ does the equivalent. **On 0.1.11 or earlier, do not let the Mac sleep during a f
   How the PMGR behaves over long float periods with an original hybrid has not been logged.
 - **What switching off fast charge mid-charge does to the current** has not been measured. The design
   assumes it reduces the rate; that is supported by one older observation, on a different battery.
-- **The low-battery warnings on a replacement hybrid may come early.** On a real pack, the first
-  warning appeared within minutes of starting from a part-charged pack, and the machine then ran
-  for about another hour before Mac OS put it to sleep, because the pack's voltage is nearly flat
-  around 6.2 V under load. The levels may be lowered in a later version.
+- **Low-battery timing on a replacement hybrid is set mostly by Mac OS.** 0.1.14 lowers the
+  recreation levels to about 6.10 V (warning) and 6.02 V (sleep), from 6.20 / 6.05 V, which on a real
+  pack warned with hours of use left. With the new levels, on two different packs, Mac OS warned and
+  then put the machine to sleep itself about 25 minutes later, well before the PMGR's own sleep point
+  and the hybrid's cut-off, and the machine resumed and charged normally afterwards. On one pack
+  Mac OS warned before the PMGR's level was reached — so the warning can still come with plenty of
+  running time left. Only these two packs, at a light load, have been tested.
 - **The fast-charge timer's top-off** does not run for exactly as long as the code predicts, by an
   amount that varies between runs. Charging still terminates; the discrepancy is unexplained.
 - **Standby current of the original chip** has not been measured for comparison, so whether 9–11 mA

@@ -117,7 +117,7 @@ without a valid one.** The machine works without a record — it just charges sl
    | Fitted hybrid | Choose | Low-battery warning | The Mac sleeps | Cut-off (the hybrid's own) |
    |---|---|---|---|---|
    | Apple's **original** | `original` | 5.90 V | 5.74 V | 5.65 V |
-   | a **recreation** (e.g. Androda's) | `recreation` | ~6.20 V | ~6.05 V | ~5.92 V on the board tested |
+   | a **recreation** (e.g. Androda's) | `recreation` | ~6.10 V | ~6.02 V | ~5.92 V on the board tested |
 
    A recreation hybrid cuts the power at a higher voltage than Apple's, to protect the battery.
    With `recreation` the board warns and sleeps above that cut-off, and reports the battery level

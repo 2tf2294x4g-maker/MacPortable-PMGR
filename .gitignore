@@ -30,3 +30,6 @@ firmware/test/*_native.c
 fp-info-cache
 
 .DS_Store
+
+# compiler dependency files (Makefile -MMD, 0.1.12+)
+firmware/src/*.d

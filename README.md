@@ -39,6 +39,9 @@ power at a higher battery voltage: the calibration record says which hybrid is f
 low-battery warnings are placed to suit it. See [`docs/VERIFIED.md`](docs/VERIFIED.md).
 ⛔ **Upgrading from 0.1.11 or earlier: rebuild your `calib.args` with `--hybrid` before flashing**
 — see [`docs/BUILD.md`](docs/BUILD.md) §7. 0.1.13's flash tool refuses the old record format.
+**0.1.14 lowers the recreation-hybrid warning levels** (about 6.10 V warning / 6.02 V sleep, from 6.20 / 6.05 V):
+on a real pack the old levels warned with hours of use left. Tested on two packs; Mac OS then times its own
+warnings and sleep. See [`docs/VERIFIED.md`](docs/VERIFIED.md).
 
 It is a **prototype**. Some parts of the charging behaviour have not been characterised on
 hardware yet, and the PowerBook 100 (which uses the same PMGR) has not been tried. Read

@@ -2,7 +2,7 @@
  *
  * ORIGINAL hybrid (and no valid record): the identity - the Mac sees the calibrated nominal level, as always.
  *
- * RECREATION hybrid (calibration record's hybrid field, 2.413; was the `HYBRID=recreation` build in 2.411): the PMGR's own thresholds sit higher (LOW 108, STAY_ASLEEP 100, DEAD 93 - pmgr_adc.h) because a
+ * RECREATION hybrid (calibration record's hybrid field, 2.413; was the `HYBRID=recreation` build in 2.411): the PMGR's own thresholds sit higher (pmgr_adc.h; the table below is the worked example for 0.1.12's 108 / 93 - the shape is the same for 2.426's 98 / 90) because a
  * recreation hybrid cuts power at ~5.92 V, above Apple's DEAD. 2.409/2.410 showed the Mac does not follow the PMGR's flags
  * alone: its bars and its own warning work from the LEVEL on Apple's scale (LOW 78, DEAD 62), so it never saw "low", put up
  * no warning, and was caught by the PMGR's DEAD backstop sleep, after which a wake restarted (2/2). So the level the Mac

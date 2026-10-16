@@ -189,9 +189,12 @@ Apple menu (left: the battery icon; right: the Apple logo it alternates with).
 ![No battery reserve power remains - Good Night](../images/battery-alert-3-no-reserve-good-night.png)
 
 Measured at the battery input on the development machine (recreation hybrid, set as
-`recreation`): warning 1 at about 6.19 V, warning 2 at about 6.12 V, warning 3 and sleep at about
-6.07 V — all above that hybrid's 5.92 V cut-off. With an original hybrid, set as `original`, the same
-sequence follows Apple's own levels (warning at 5.90 V, sleep by 5.74 V).
+`recreation` with **0.1.12–0.1.13's levels**): warning 1 at about 6.19 V, warning 2 at about 6.12 V,
+warning 3 and sleep at about 6.07 V — all above that hybrid's 5.92 V cut-off. **0.1.14 lowers the
+recreation levels** (warning ~6.10 V, sleep ~6.02 V), because on a real pack the old ones warned with
+hours of use left; Mac OS then times the later warnings and its own sleep (about 25 minutes after the
+first warning, on two packs). With an original hybrid, set as `original`, the sequence follows Apple's
+own levels (warning at 5.90 V, sleep by 5.74 V).
 
 On a **real pack** (rather than a bench supply) the sequence is the same, but the warnings come
 earlier in the pack's life: its voltage is nearly flat around 6.2 V under load, so the first warning

@@ -424,7 +424,7 @@ they land.
 is easy now and awkward once the stack is in a Mac.
 
 ```
-  firmware   firmware/pmgr.hex     text 10945 bytes, avr-gcc 14.3.0
+  firmware   firmware/pmgr.hex     text 10947 bytes, avr-gcc 14.3.0
              ⭐ byte-identical to baselines/2026-09-30-charging-adc-interlock/
 ```
 
