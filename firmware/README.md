@@ -1,6 +1,6 @@
 # Firmware — AVR128DB64
 
-Open replacement firmware for the Macintosh Portable's M50753 power manager. It serves the Mac's
+Open replacement firmware for the M50753 power manager of the Macintosh Portable and PowerBook 100. It serves the Mac's
 host protocol, runs the battery and charging logic autonomously, handles sleep, wake and reset, and
 keeps PRAM in EEPROM.
 
@@ -44,11 +44,11 @@ field existed keeps working, as `original`. (`make HYBRID=` from an earlier buil
 
 ## Host-side tests
 
-The protocol, PRAM save, ADC handling, calibration and charging logic are compiled natively and
-tested on your computer — no hardware needed:
+The protocol, PRAM save, ADC handling, calibration, charging logic and PWM output are compiled
+natively and tested on your computer — no hardware needed. All eleven suites:
 
 ```bash
-make -C test run_save run_latch run_adb_latch run_deadline run_adc run_charging run_calib run_calib_cross
+make -C test
 ```
 
 ## Layout
@@ -57,7 +57,7 @@ make -C test run_save run_latch run_adb_latch run_deadline run_adc run_charging 
 src/            main.c and one file per subsystem: bus, proto, handlers, adb, adc, calib,
                 pram, pwm, rom, selftest
 include/        headers. pmgr_pins.h is GENERATED from the MCU board by gen_pins.py
-test/           native test harness and the eight suites
+test/           native test harness and the eleven suites
 gen_pins.py     regenerates include/pmgr_pins.h from hardware/mcu-board/pmgr_mcu.kicad_pcb
 tools_rom2h.py  converts YOUR OWN ROM dump to a header, for the byte-exact build (below)
 FUSES.md        the fuse configuration pmgr.hex assumes, and why
@@ -79,7 +79,7 @@ make EXTRA_CFLAGS=-DPMGR_FAITHFUL_ROM
 
 | pad | meaning when high |
 |---|---|
-| `DBG2` (PF3) | the ADC scale self-check passed. ⚠️ Low until the machine has been switched on once |
+| `DBG2` (PF3) | the ADC scale self-check passed: the ADC reads two internal levels derived from the AVR's 2.048 V reference correctly. Set shortly after power is applied, the same on a Portable and a PowerBook 100 |
 | `DBG1` (PF4) | an ADC conversion **timed out** — latched, never cleared until reset |
 | `DBG0` (PF5) | the RTC/PIT synchronisation timed out |
 

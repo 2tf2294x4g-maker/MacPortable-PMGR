@@ -1594,6 +1594,22 @@ uint8_t pmgr_mem_read(uint16_t addr)
     /* ---- I/O registers -------------------------------------------------- */
     case 0x00E0u: return p0_read();                 /* Port_P0 */
 
+    /* InitPorts direction constants (pmgr.asm 176-184). These describe the
+     * original ports, not the AVR pin allocation. */
+    case 0x00E1u: return 0xFFu;                    /* Port_P0_DIR */
+    case 0x00E3u: return 0xB5u;                    /* Port_P1_DIR */
+    case 0x00E9u: return 0x7Au;                    /* Port_P3_DIR */
+    case 0x00EBu: return 0x05u;                    /* Port_P4_DIR */
+    /* Both processors use a whole-byte, active-high direction register for
+     * the VIA bus: $00 input, $FF output. Read the pins, including during the
+     * command transaction itself; idle is not necessarily $FF. */
+    case 0x00E4u: return BUS_PORT.IN;              /* VIA_Com */
+    case 0x00E5u: return BUS_PORT.DIR;             /* VIA_Com_DIR */
+    /* PWM_Ctrl_Reg: ONLY bit 0 (PWM on, pmgr.asm 201/1353/1396) is modelled;
+     * any other bits of the real register read 0 here. */
+    case 0x00F5u: return pmgr_pwm_is_enabled() ? 0x01u : 0x00u;
+
+
     /* Port_P3 ($E8) - handshake and system control. Bit assignments confirmed
      * against Apple sheet 12 (PMGR-PROTOCOL-REFERENCE.md):
      *
@@ -1650,6 +1666,29 @@ uint8_t pmgr_mem_read(uint16_t addr)
         if (!PIN_IS_LOW(PMREQ_N_PORT,      PMREQ_N_bm))      v |= (1u << 7);
         return v;
     }
+    /* ⭐⭐ In_Reg ($EE) - the M50753's dedicated input port (MEASUREMENTS.md 2.432, 2.434).
+     * ⛔ This address was UNMAPPED and read 0, and the PB100 booted straight into
+     * SCSI Disk Mode. The PB100 ROM's check is at $3980E (PB100-only code,
+     * $39000-$399B6): PMGR command $E8, address $00EE, count 1, then
+     * btst #29 = bit 5 of the reply; 0 -> the disk-mode screen at $3902A.
+     * Apple's PMGR code never tests bit 5 (pmgr.asm reads only bits 2 and 3);
+     * the original simply reflects its input pin.
+     *   bit 5  IN5 = pin 48, by the IN-port layout (bits 2/3 = IN2/IN3 = pins
+     *          51/50, Class A). The HDI-30 SCSI Disk Adapter grounds HDI-30
+     *          pin 1 (PB100 Developer Note p. 28); pin 1 -> U22 pad 48 is the
+     *          predicted path, ⬜ continuity not yet checked. Pin 48 is NOT
+     *          routed on this hardware, so we report 1 (normal boot) always:
+     *          disk mode cannot be entered until pin 48 reaches an AVR input.
+     *   bit 2  SOUND_LATCH, bit 3 OFF_HOOK - the two bits Apple's code reads
+     *          (pmgr.asm 985/1466, 1263), from the real pins.
+     *   bits 0,1,4,6,7  0 - analogue or unrouted inputs (PORT-AUDIT.md). */
+    case 0x00EEu: {
+        uint8_t v = (uint8_t)(1u << 5);
+        if ((SOUND_LATCH_PORT.IN & SOUND_LATCH_bm) != 0u) v |= (1u << 2);
+        if ((OFF_HOOK_PORT.IN & OFF_HOOK_bm) != 0u)       v |= (1u << 3);
+        return v;
+    }
+
     /* AD_Reg ($EF) - the LAST COMPLETED conversion, any channel.
      * ⛔ This returned s_battery_level, which is only conditionally truthful:
      * the register holds whichever channel converted most recently, and the
@@ -1673,6 +1712,11 @@ uint8_t pmgr_mem_read(uint16_t addr)
         /* ⭐ $302 - the CHARGING fault, ours, outside the M50753's map (2.374).
          * bit 0: the ADC-scale interlock is currently holding fast charge off. */
         if (addr == 0x0302u) return s_hichg_faulted ? 0x01u : 0x00u;
+        /* ⭐ $303-$305 - the ADC scale check, ours (2.427): the internal
+         * DACREF readings HI and LO, and the verdict bits (PMGR_ADC_BIT_*). */
+        if (addr == 0x0303u) return pmgr_adc_internal_hi();
+        if (addr == 0x0304u) return pmgr_adc_internal_lo();
+        if (addr == 0x0305u) return pmgr_adc_scale_bits();
 
         /* $E800-$FFFF - the program ROM the host can dump through $E8.
          * Synthetic in the public build, exact pmuv1.bin in the faithful one;
@@ -2238,6 +2282,10 @@ static void sleep_wait_tick(void)
 void pmgr_tick_1s(void)
 {
     pmgr_time_tick();                        /* inc timeA, carry upward */
+#ifdef PMGR_PWM_DIAG
+    if (!s_asleep && (SYS_PWR_N_PORT.OUT & SYS_PWR_N_bm) == 0u)   /* Mac on and awake only */
+        pmgr_pwm_diag_snapshot();
+#endif
 
     /* :596-610 - the wake-timer compare lives in the 1 Hz path and only runs
      * while parked ($0 bit 6). */
@@ -2446,9 +2494,10 @@ void pmgr_tick_1s(void)
      *
      * PMGR_ADC_LOW_LEVEL and _DEAD_LEVEL are Apple's byte-scale constants
      * (78 / 62). They mean nothing unless our conversions land on the same
-     * scale, and pmgr_adc_recheck_scale() checks exactly that against AD_Ref -
-     * which measures 2.3 V with the machine on, giving 113, NOT the 128 an
-     * earlier revision assumed from a nominal 2.5 V divider.
+     * scale, and pmgr_adc_recheck_scale() checks exactly that: against the
+     * AVR's own DACREF on every machine (2.427), and on the Portable also
+     * against AD_Ref - which measures 2.3 V with the machine on, giving 113,
+     * NOT the 128 an earlier revision assumed from a nominal 2.5 V divider.
      *
      * If that check failed, the readings are on an unknown scale and could sit
      * anywhere - including below the DEAD threshold, which would report a flat

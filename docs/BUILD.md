@@ -7,6 +7,15 @@ this repository.
 
 Read the safety notes in the top-level [`README`](../README.md) first.
 
+> **PowerBook 100?** The same boards and the same `pmgr.hex` are used — there is no separate build.
+> The differences are in fitting and testing: the PMGR is **U22**, its test points are all on the
+> **underside** of the logic board, the stack sits **under the CPU board** (it fits), and the
+> battery-bay **plunger** must be held in for a bench supply on the battery contacts to power anything.
+> It has no separate power hybrid; its battery sense reads on the Portable's scale, so calibrate it as
+> below with `--hybrid original`. Calibration and charging have **not yet been tried** on a PowerBook
+> 100 — see [`VERIFIED.md`](VERIFIED.md#powerbook-100) and the probe points in
+> [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md#powerbook-100).
+
 ## 0. Skills and tools
 
 This is **fine-pitch surface-mount work on an irreplaceable machine.** Be comfortable with:

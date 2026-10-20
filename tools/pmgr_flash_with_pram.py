@@ -144,12 +144,30 @@ if ARGS == '-':
     vals, n = [], 0
 else:
     vals = pram_toks; n = len(vals)          # validated above, before the erase
+# ---- strict EEPROM read (used for PRAM AND the calibration record) ----------
+def ee_read(off, ln):
+    """Read ln bytes, or DIE. ⛔ Returning a short list silently is how a
+    verification passes on no data: `all(x == 0xFF for x in [])` is True, so an
+    EMPTY read reported "erased" and the tool exited 0. Found by review
+    2026-09-28 (MEASUREMENTS 2.362). A read that does not produce exactly ln
+    bytes is a FAILED read, not an erased region."""
+    out, txt = [], run(['read'] + base + ['-m', 'eeprom', '-o', str(off), '-b', str(ln)])
+    for line in txt.splitlines():
+        if line.startswith('0x'):
+            out += [int(t, 16) for t in line.split(':', 1)[1].split() if t != 'xx']
+    if len(out) < ln:
+        sys.exit(f'⛔ EEPROM read at {off} returned {len(out)} of {ln} bytes - '
+                 f'VERIFICATION IMPOSSIBLE, not "erased". pymcuprog said:\n{txt[-400:]}')
+    return out[:ln]
+
 if n:
     run(['write'] + base + ['-m', 'eeprom', '-o', '0', '-l'] + vals)   # one list argument per byte
-r = run(['read'] + base + ['-m', 'eeprom', '-o', '0', '-b', str(n + 132)])
-b = []
-for line in r.splitlines():
-    if line.startswith('0x'): b += [int(t, 16) for t in line.split(':', 1)[1].split() if t != 'xx']
+# ⛔ THROUGH ee_read(), which dies on a short read. This readback used to parse
+# pymcuprog's output itself: a TRUNCATED read left b[n:n + 132] short or empty,
+# and all(x == 0xFF for x in []) is True, so the tool reported "next 132 bytes
+# erased" and could exit 0 on data it never read - the 2.362 bug, in the one
+# place its fix did not reach (review 2026-10-15).
+b = ee_read(0, n + 132) if n else ee_read(0, 4)
 same = b[:n] == [int(x, 16) for x in vals]
 if n:
     erased = all(x == 0xFF for x in b[n:n + 132])
@@ -166,22 +184,6 @@ else:
     print(f'PRAM slots not checked (no image written); firmware may already have saved one - '
           f'first bytes {" ".join(f"{x:02X}" for x in b[:4])}')
     ok = True
-
-# ---- the calibration record ------------------------------------------------
-def ee_read(off, ln):
-    """Read ln bytes, or DIE. ⛔ Returning a short list silently is how a
-    verification passes on no data: `all(x == 0xFF for x in [])` is True, so an
-    EMPTY read reported "erased" and the tool exited 0. Found by review
-    2026-09-28 (MEASUREMENTS 2.362). A read that does not produce exactly ln
-    bytes is a FAILED read, not an erased region."""
-    out, txt = [], run(['read'] + base + ['-m', 'eeprom', '-o', str(off), '-b', str(ln)])
-    for line in txt.splitlines():
-        if line.startswith('0x'):
-            out += [int(t, 16) for t in line.split(':', 1)[1].split() if t != 'xx']
-    if len(out) < ln:
-        sys.exit(f'⛔ EEPROM read at {off} returned {len(out)} of {ln} bytes - '
-                 f'VERIFICATION IMPOSSIBLE, not "erased". pymcuprog said:\n{txt[-400:]}')
-    return out[:ln]
 
 if CALIB:
     cv = cal_toks                             # validated above, before the erase

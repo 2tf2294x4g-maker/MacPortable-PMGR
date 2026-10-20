@@ -17,7 +17,8 @@ this file's output against the C implementation's for the same inputs.
 ⛔ The bounds below are the firmware's, repeated deliberately: refusing here
 gives a readable error at the desk instead of a silent gate engagement on the
 bench. The FIRMWARE remains the authority - pmgr_calib.c checks them again."""
-import argparse, sys
+import argparse
+import math, sys
 
 MAGIC, VERSION = 0xCA1B, 2      # 2.413: v2 = byte 13 is the HYBRID type
 VERSION_V1 = 1                    # still accepted by the firmware, as 'original'
@@ -47,6 +48,11 @@ def wr16(v):
 
 
 def build(a, b, resid, span_v, rail_v, pairing, hybrid):
+    # ⛔ argparse's float ACCEPTS 'nan'/'inf'; round() then raised a traceback. Refuse cleanly.
+    bad = [n for n, x in (('a', a), ('b', b), ('resid', resid), ('span', span_v), ('rail', rail_v))
+           if not math.isfinite(x)]
+    if bad:
+        sys.exit(f'⛔ refusing to build a record: non-finite {", ".join(bad)}')
     a_q8 = int(round(a * 256))
     b_q8 = int(round(b * 256))
     resid_q4 = int(round(resid * 16))

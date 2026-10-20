@@ -1,9 +1,10 @@
 # What has been verified
 
-Everything below was measured on a **Macintosh Portable M5120 fitted with this replacement**, against
-a second, **unmodified Portable** used as the reference. **It has not been installed in any other model**
-— not the backlit Portable (M5126), and not the PowerBook 100. One machine is a small sample: treat these as
-"shown to work here", not "guaranteed to work everywhere".
+Unless a section says otherwise, everything below was measured on a **Macintosh Portable M5120 fitted
+with this replacement**, against a second, **unmodified Portable** used as the reference. Since 0.1.15
+it also runs a **PowerBook 100** — see [PowerBook 100](#powerbook-100) for what has been shown there.
+**It has not been installed in a backlit Portable (M5126).** One machine of each is a small sample:
+treat these as "shown to work here", not "guaranteed to work everywhere".
 
 ## ✅ Shown on hardware
 
@@ -44,12 +45,72 @@ a second, **unmodified Portable** used as the reference. **It has not been insta
 - Mac OS showed its three low-battery warnings, then put the machine to sleep itself, well above the
   hybrid's cut-off. With the charger connected, a keypress **resumed** it rather than restarting.
 
+**The PWM output (contrast on the Portable).** *(fixed in 0.1.15 — see below)*
+- M50753 pin 57 carries a **926–935 Hz** square wave at every slider position, with the duty cycle
+  following the original's contrast table, (2 + 2X)/66: 96.3 / 48.1 / 15.0 / 5.6 % measured. No hang
+  through repeated slider moves. The visible effect on a Portable LCD has not been seen: the
+  development machine's original LCD is not connected.
+
 **Other.**
 - Current drawn with the Mac switched off: **about 9–11 mA**.
 - A cursor flicker seen under 7.5.3 was traced to a system extension, not the PMGR: it disappears
   with extensions off, under 6.0.8, and appears on the unmodified machine too.
-- Eight host-side unit-test suites cover the protocol, PRAM save, ADC handling, calibration and the
-  charging state machine.
+- Eleven host-side unit-test suites cover the protocol, PRAM save, ADC handling, calibration, the
+  charging state machine and the PWM output (including the silicon erratum below).
+
+## PowerBook 100
+
+One PowerBook 100 (System 7.5.3, a BlueSCSI as its disk), with **the same boards and the same
+firmware** as the Portable, on a bench supply at the battery contacts. Its original M50753 was measured
+in place first, then removed and replaced by the stack at U22.
+
+**✅ Shown**
+- It **boots to the Finder** and its battery icon reads the same as with the original chip at the
+  same voltage (4 of 8 bars at 6.40 V).
+- The **brightness dial works** — dial → the PMGR's analogue input → Mac OS → the PMGR's PWM →
+  the backlight. The contrast dial works too (it does not go through the PMGR).
+- **Sleep and wake** by keypress.
+- Mac OS's **whole low-battery sequence** — the bars stepping down, "reserve power", "very little
+  remaining", then sleep — and a keypress resumes it afterwards.
+- The **battery sense is the Portable's circuit and scale**: with the original chip, the reading at
+  the PMGR's input matched the Portable's line within about 1 count at 6.20 and 6.40 V. So the
+  Portable's calibration method and both `--hybrid` settings apply unchanged.
+- The stack **fits under the CPU board**, on the same footprint as the Portable's. The supply groups
+  and unused pads checked on the bare footprint match the Portable's.
+
+**⚠️ Uncalibrated, it reads the battery about 0.05 V low.** Stepping a bench supply down 0.02 V a
+minute, the same machine with its original chip and then with the replacement:
+
+| event (Mac OS) | original M50753 | replacement, uncalibrated |
+|---|---|---|
+| 2 of 8 bars | 6.30 V | 6.28 V |
+| "reserve power" | 6.24 V | 6.28 V |
+| "very little remaining" | 6.14 V | 6.20 V |
+| Mac OS sleeps | 6.06 V | 6.12 V |
+
+The direction is the safe one (warnings come early). A calibration record
+removes the offset, but that needs a battery to calibrate against — not done yet. Without a record
+the firmware deliberately **does not fast-charge**.
+
+**⬜ Not shown yet**
+- **Charging** of any kind — there was no battery for it.
+- **SCSI Disk Mode** with the HDI-30 SCSI Disk Adapter — **under review, with a likely fix.**
+  - **How the original does it:** the adapter grounds pin 1 of the HDI-30 connector (Apple's
+    *PowerBook 100 Developer Note*). On this logic board that pin reaches the PMGR's **pin 48**
+    through about 91 Ω. The PMGR reports the pin as bit 5 of its register `$EE`.
+  - **The ROM:** the PowerBook 100's ROM reads `$EE` at startup and enters disk mode when bit 5 is 0.
+    Both are shown: in the ROM's code, and on the machine, where 0 gave disk mode and 1 a normal boot.
+  - **On this board:** pin 48 is not connected to the AVR, so the replacement always reports 1. With
+    the adapter plugged in, the machine boots normally instead of entering disk mode.
+  - **Likely fix:** one wire from the interposer's pin 48 to a spare AVR pin, and a firmware change
+    to read it. Boards without the wire keep booting normally. Not yet built or tested.
+  - ⚠️ On **0.1.14 and earlier**, a PowerBook 100 *always* starts in disk mode. It shows a SCSI
+    icon, or, at lower battery voltages, a battery that alternates with a warning-triangle battery.
+- **A closed case** with the stack fitted, and long running.
+
+**Bench notes.** The battery-bay plunger is the PowerBook 100's battery switch: with a bench supply
+on the battery contacts, nothing powers up unless the plunger is held in. It drew 0.7–1.0 A at 6.2–6.4 V
+with the Mac running; a 1.5 A limit was used. ⛔ With an **original M50753** still fitted, stay at or below **6.5 V**.
 
 ## Deliberate differences from the original
 
@@ -68,6 +129,26 @@ EEPROM out in about a day.)
 The case that is lost is narrow: PRAM that *looks* valid but holds settings that stop the Mac
 booting. The fix is then the programmer, not the battery — see "Resetting PRAM" in
 [`PROGRAMMING.md`](PROGRAMMING.md).
+
+## ⛔ Fixed in 0.1.15 — update if you run 0.1.14 or earlier
+
+**The PWM output was never driven.** M50753 pin 57 (the Portable's LCD contrast, the PowerBook 100's
+backlight brightness) stayed low on every board. The AVR128DB has a silicon erratum (Microchip
+DS80000915, revisions A4 and A5): the whole CCL peripheral must be disabled before a lookup table's
+configuration changes, and the datasheet separately requires the table itself to be disabled when its
+output enable changes. Earlier firmware broke the first rule, so the write that switches the output on
+was silently ignored. 0.1.15 obeys both, and a unit test models both rules.
+
+**Register `$EE` read as 0.** The Mac reads some of the PMGR's registers directly. `$EE` was not
+answered, and on the PowerBook 100 a 0 in its bit 5 means "the SCSI Disk Adapter is plugged in:
+start in SCSI Disk Mode". It now reads as on
+the original (bit 5 = 1, bits 2 and 3 from the sound-latch and off-hook lines). The original's fixed
+port-direction registers (`$E1 $E3 $E9 $EB`), the VIA bus and its direction (`$E4 $E5`) and the PWM
+control bit (`$F5`) are answered too. No change was seen on the Portable.
+
+**The battery-reading self-check uses an internal reference.** `DBG2` used to check the ADC against
+an external line that depends on the machine; it now converts the AVR's own 2.048 V reference, so the
+verdict means the same on both machines and is valid shortly after power is applied.
 
 ## ⛔ Fixed in 0.1.12 — update if you run 0.1.11 or earlier
 
@@ -102,7 +183,8 @@ does the equivalent. **On 0.1.11 or earlier, do not let the Mac sleep during a f
   amount that varies between runs. Charging still terminates; the discrepancy is unexplained.
 - **Standby current of the original chip** has not been measured for comparison, so whether 9–11 mA
   is acceptable for a machine left unplugged for weeks is open.
-- **The PowerBook 100** uses the same power manager and has not been tried.
+- **The PowerBook 100**: charging, calibration, SCSI Disk Mode and a closed case — see
+  [PowerBook 100](#powerbook-100).
 
 ## About the development machine
 

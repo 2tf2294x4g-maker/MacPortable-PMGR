@@ -73,6 +73,9 @@ void    pmgr_adc_recheck_scale(bool ref_expected)
     if (stub_fail_at_recheck) stub_scale_ok = false;
 }
 void    pmgr_adc_note_wake(void)    { }
+uint8_t pmgr_adc_internal_hi(void)  { return 99u; }
+uint8_t pmgr_adc_internal_lo(void)  { return 49u; }
+uint8_t pmgr_adc_scale_bits(void)   { return stub_scale_ok ? 0x03u : 0x00u; }
 
 /* ---- ADB ---------------------------------------------------------------- */
 void    pmgr_adb_off(void)          { }
@@ -100,7 +103,9 @@ void     pmgr_time_tick(void)       { s_time++; }
 
 /* ---- PWM / contrast ----------------------------------------------------- */
 static uint8_t s_contrast = 4u;
-void    pmgr_pwm_enable(bool on)        { (void)on; }
+static bool s_pwm_on;
+void    pmgr_pwm_enable(bool on)        { s_pwm_on = on; }
+bool    pmgr_pwm_is_enabled(void)       { return s_pwm_on; }
 void    pmgr_contrast_set(uint8_t v)    { s_contrast = v; }
 uint8_t pmgr_contrast_get(void)         { return s_contrast; }
 void    pmgr_contrast_validate(void)    { }

@@ -38,6 +38,7 @@ it is there - and to check the published line against data it was not fitted to.
 """
 import argparse
 import csv
+import math
 import re
 import sys
 
@@ -74,7 +75,7 @@ def volts_column(fieldnames):
 
 
 def load(path):
-    rows = []
+    rows, nonfinite = [], []
     with open(path, newline='') as fh:
         rd = csv.DictReader(fh)
         col = volts_column(rd.fieldnames or [])
@@ -87,7 +88,17 @@ def load(path):
                 v = float(r[col]); lv = int(r['level'])
             except (ValueError, TypeError, KeyError):
                 continue
+            # ⛔ float() ACCEPTS 'nan' and 'inf'. One such row made the span, slope and every
+            # residual NaN, and NaN compares False with everything - so each `>` refusal below fell
+            # through and the tool printed "✅ within the limit" (review 2026-10-15). A voltage that
+            # is not a number is not a reading: count it and refuse, never fit around it.
+            if not math.isfinite(v):
+                nonfinite.append(v)
+                continue
             rows.append((v, lv, r.get('flags', '')))
+    if nonfinite:
+        sys.exit(f'  ⛔ {len(nonfinite)} row(s) in {path} have a non-finite voltage ({nonfinite[0]}). '
+                 f'The capture is damaged - fix or re-collect it; NO FIT IS JUDGED.')
     return rows
 
 
@@ -142,7 +153,8 @@ def main():
 
     # ---- our own slope, but only if the span earns it ---------------------
     print(f"\n  === slope fitted to THIS data ===")
-    if span < MIN_SPAN_V:
+    # ⛔ Every verdict below is written so a NaN FAILS: `not (x >= limit)`, never `x < limit`.
+    if not (span >= MIN_SPAN_V):
         print(f"    ⛔ REFUSED - span is {span*1000:.0f} mV, need ≥ {MIN_SPAN_V*1000:.0f} mV.")
         print(f"       Level is an integer, so quantisation alone is ±4.7 mV. Over")
         print(f"       {span*1000:.0f} mV a least-squares slope is mostly noise, and it")
@@ -168,14 +180,14 @@ def main():
     worst_fit = max(abs(r) for r in fres)
     print(f"\n  === residual of THIS fit ===")
     print(f"    worst |residual|   {worst_fit:.2f} counts   (limit {MAX_RESID:.2f})")
-    if worst_fit > MAX_RESID:
+    if not (worst_fit <= MAX_RESID):
         print(f"    ⛔ REFUSED - the line does not describe this data. The firmware would reject a")
         print(f"       record carrying this residual. Check the data before re-running:")
         print(f"       - were these UNCORRECTED readings? (board flashed WITHOUT a record)")
         print(f"       - was the DMM on the pack terminals, and the machine's load steady?")
         sys.exit(1)
     print(f"    ✅ within the limit.")
-    if span < RECORD_SPAN_V:
+    if not (span >= RECORD_SPAN_V):
         print(f"    ⛔ BUT the sweep spans {span:.3f} V; a calibration record needs at least {RECORD_SPAN_V:.2f} V.")
         print(f"       Extend the sweep before building a record.")
         sys.exit(1)

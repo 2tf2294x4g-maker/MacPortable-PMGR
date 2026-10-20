@@ -21,6 +21,8 @@ firmware/test/tr
 firmware/test/tc
 firmware/test/tcal
 firmware/test/cross_calib
+firmware/test/test_report
+firmware/test/tpwm
 firmware/test/*_native.c
 
 # KiCad per-user state

@@ -31,6 +31,7 @@
 #include "eesim.h"
 #include <string.h>
 #include "pmgr_adc.h"
+#include "pmgr_pwm.h"
 
 static int pass, fail, todo, hard_fail, todo_pass;
 static void ok(int cond, const char *what)
@@ -138,6 +139,34 @@ int main(void)
     ok(hichg_asserted(), "charger + valid level -> HICHG asserted");
     ok(hichg_state() != 0u, "the state machine has entered (state != 0)");
     ok(battery_level() == 200u, "the $E8 view reports the level we staged");
+
+    /* ⭐ In_Reg $EE (2.432): bit 5 = 1 is NORMAL BOOT on the PowerBook 100 (0 = target disk mode). It read 0 when
+     * unmapped and the PB100 booted into SCSI Disk Mode. Bits 2/3 follow SOUND_LATCH / OFF_HOOK. */
+    printf("\nIn_Reg $EE\n");
+    PORTC.IN = 0;
+    ok((pmgr_mem_read(0x00EEu) & 0x20u) != 0u, "$EE bit 5 = 1: NORMAL boot, not target disk mode  [2.432]");
+    ok((pmgr_mem_read(0x00EEu) & 0x0Cu) == 0u, "$EE bits 2/3 clear with SOUND_LATCH / OFF_HOOK low");
+    PORTC.IN = (uint8_t)(SOUND_LATCH_bm | OFF_HOOK_bm);
+    ok((pmgr_mem_read(0x00EEu) & 0x0Cu) == 0x0Cu, "$EE bits 2/3 follow SOUND_LATCH / OFF_HOOK high");
+    PORTC.IN = 0;
+
+    /* Additional original-register reads through the same $E8 memory map. */
+    ok(pmgr_mem_read(0xE1u) == 0xFFu, "$E1: P0 direction from InitPorts");
+    ok(pmgr_mem_read(0xE3u) == 0xB5u, "$E3: P1 direction from InitPorts");
+    ok(pmgr_mem_read(0xE9u) == 0x7Au, "$E9: P3 direction from InitPorts");
+    ok(pmgr_mem_read(0xEBu) == 0x05u, "$EB: P4 direction from InitPorts");
+    PORTA.IN = 0xA5u; PORTA.DIR = 0;
+    ok(pmgr_mem_read(0xE4u) == 0xA5u && pmgr_mem_read(0xE5u) == 0u,
+       "VIA bus: live byte and input direction");
+    PORTA.IN = 0x5Au; PORTA.DIR = 0xFFu;
+    ok(pmgr_mem_read(0xE4u) == 0x5Au && pmgr_mem_read(0xE5u) == 0xFFu,
+       "VIA bus: changed byte and output direction");
+    PORTA.IN = 0; PORTA.DIR = 0;
+    pmgr_pwm_enable(false);
+    ok(pmgr_mem_read(0xF5u) == 0u, "$F5: PWM disabled");
+    pmgr_pwm_enable(true);
+    ok(pmgr_mem_read(0xF5u) == 1u, "$F5: PWM enabled after wake");
+    ok(pmgr_mem_read(0xF0u) == 0u, "unmapped timer remains zero");
 
     /* ---- C1  PERSISTENT FAULT -------------------------------------------- */
     printf("\nC1  persistent ADC fault, charger connected\n");

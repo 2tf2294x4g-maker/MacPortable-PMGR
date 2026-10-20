@@ -42,6 +42,8 @@ void    pmgr_pwm_init(void);            /* TCA0 + CCL routing. Output OFF. */
 
 /* seb 0,PWM_Ctrl_Reg (:201, :1396) / clb 0,PWM_Ctrl_Reg (:353, :1353). */
 void    pmgr_pwm_enable(bool on);
+/* Effective output enable, exposed as M50753 PWM_Ctrl_Reg bit 0. */
+bool    pmgr_pwm_is_enabled(void);
 
 /* SetContrast, pmgr.asm 1177-1189. Stores the value and updates the duty.
  * Takes the raw host byte; masks to 5 bits itself. */
@@ -62,5 +64,12 @@ uint8_t pmgr_contrast_get(void);
  *
  * Call once at startup, before SetContrast. */
 void    pmgr_contrast_validate(void);
+
+#ifdef PMGR_PWM_DIAG
+/* ⛔ DIAGNOSTIC BUILD ONLY (`make PWM_DIAG=1`, MEASUREMENTS 2.431). Copies the PWM chain's registers into
+ * g_pwmdiag once a second while the Mac runs, for reading over UPDI after shutdown (avr-nm gives the address).
+ * The normal image does not contain it. */
+void    pmgr_pwm_diag_snapshot(void);
+#endif
 
 #endif /* PMGR_PWM_H */

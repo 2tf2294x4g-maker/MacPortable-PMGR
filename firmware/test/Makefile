@@ -8,7 +8,7 @@
 #   3A 02 46 01  ->  3A 01 00     (xPRAM read, location $46)
 # recorded in MEASUREMENTS.md 2.9.
 
-all: run run_save run_latch run_adb_latch run_deadline run_adc run_charging run_calib run_calib_cross run_report
+all: run run_save run_latch run_adb_latch run_deadline run_adc run_charging run_calib run_calib_cross run_report run_pwm
 
 # ⭐ pmgr_pram.c now compiles UNMODIFIED natively: off-AVR it takes its EEPROM
 # primitives from include/pmgr_ee_hal.h, implemented by eesim.c (a simulated
@@ -87,7 +87,7 @@ run_charging: tc
 	./tc
 
 clean:
-	rm -f t ts tl tal td ta tc adc_native.c handlers_native.c pins_native.h
+	rm -f t ts tl tal td ta tc tpwm pwm_native.c adc_native.c handlers_native.c pins_native.h
 
 # N1 - the calibration record, its CRC and THE GATE (MEASUREMENTS 2.349).
 # ⛔ Links handlers_native.c deliberately: N1.9's claim is about the CHARGING
@@ -111,3 +111,13 @@ run_calib_cross: cross_calib
 # 2.411/2.413: the reported-level remap - identity for an original hybrid, the map for a recreation one.
 run_report: test_report.c ../include/pmgr_report.h ../include/pmgr_adc.h Makefile
 	cc -std=c11 -Wall -Wextra -Werror -I../include -o tr test_report.c && ./tr
+
+# ⭐ PWM output on PD6 (pin 57: contrast / PB100 backlight). MEASUREMENTS 2.431 - the AVR-DB CCL erratum, modelled.
+pwm_native.c: ../src/pmgr_pwm.c gen_pwm_native.py Makefile
+	python3 gen_pwm_native.py $< > $@
+
+tpwm: test_pwm.c pwm_native.c pwmstub.h ../include/pmgr_pwm.h
+	cc -std=gnu11 -Wall -Wextra -Werror -DF_CPU=24000000UL -I. -Imockinc -I../include -o tpwm test_pwm.c pwm_native.c
+
+run_pwm: tpwm
+	./tpwm

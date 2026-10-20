@@ -61,9 +61,15 @@ ifdef HYBRID
 $(error HYBRID= no longer exists - choose the hybrid in the calibration record: pmgr_calib_image.py --hybrid)
 endif
 
+# ⛔ DIAGNOSTIC: `make PWM_DIAG=1` snapshots the PWM chain into g_pwmdiag (MEASUREMENTS 2.431). Never a release image.
+PWM_DIAG ?= 0
+ifeq ($(PWM_DIAG),1)
+DIAG_FLAG = -DPMGR_PWM_DIAG
+endif
+
 CFLAGS   = -mmcu=$(MCU) -DF_CPU=$(F_CPU) -Os -std=gnu11 \
            -Wall -Wextra -Werror -Wundef -Wshadow \
-           -ffunction-sections -fdata-sections -Iinclude $(ADB_HS_FLAG) $(PARK_FLAG) $(EXTRA_CFLAGS) \
+           -ffunction-sections -fdata-sections -Iinclude $(ADB_HS_FLAG) $(PARK_FLAG) $(DIAG_FLAG) $(EXTRA_CFLAGS) \
            -MMD -MP
 LDFLAGS  = -mmcu=$(MCU) -Wl,--gc-sections $(EXTRA_LDFLAGS)
 

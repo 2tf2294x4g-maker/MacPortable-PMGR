@@ -424,8 +424,8 @@ they land.
 is easy now and awkward once the stack is in a Mac.
 
 ```
-  firmware   firmware/pmgr.hex     text 10947 bytes, avr-gcc 14.3.0
-             ⭐ byte-identical to baselines/2026-09-30-charging-adc-interlock/
+  firmware   firmware/pmgr.hex     text 11427 bytes, avr-gcc 14.3.0
+             ⭐ byte-identical to baselines/2026-10-20-in-reg-memmap/
 ```
 
 ### ⛔⛔ BEFORE YOU WIRE ANYTHING — `J2` PIN 2 IS +5V, AND IT REACHES THE MACHINE

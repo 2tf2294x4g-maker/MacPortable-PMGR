@@ -230,9 +230,9 @@ _Static_assert(PMGR_RECREATION_DEAD_LEVEL >= PMGR_RECREATION_CUTOFF_LEVEL + 5u,
  * sheet at all. What drives J12-19 is inside the display module and is NOT in
  * that schematic package, so no PB100 expectation can be written here yet.
  *
- * ⚠️ Every bring-up stage runs on Portable #1, so this is correct today. The
- * day the board is fitted to a PowerBook 100, this check must be gated off or
- * given a value measured on that machine - NOT guessed.
+ * ⭐ DONE (2.427): this check now REPORTS ONLY ($305 bit 1) and gates nothing.
+ * The machine-independent DACREF check below is the gate on every machine, so
+ * one image serves both, as Apple's one program does.
  *
  * ⭐ The INPUT is safe either way: R1 1K in series and D1 BAT54S to both rails.
  */
@@ -245,6 +245,63 @@ _Static_assert(PMGR_RECREATION_DEAD_LEVEL >= PMGR_RECREATION_CUTOFF_LEVEL + 5u,
  * machine off and far below the 113 expected with it on. */
 #define PMGR_ADC_REF5V_FLOOR    32u
 
+/* ⭐⭐ THE MACHINE-INDEPENDENT CHECK - MEASUREMENTS.md 2.427 (ROADMAP-V2 §2.69).
+ *
+ * The AD_Ref check above is the PORTABLE's divider check. The three faults it
+ * was written to catch - wrong VREF, wrong shift, wrong MUX - are not about any
+ * external node, so this check finds them with none: the ADC (reference VDD, as
+ * for every reading) converts DACREF0, the AC0 DAC reference, an internal node
+ *
+ *       V = DACREF/256 x 2.048 V   (ACREF = internal band gap, +/-4 %, DS 39-17)
+ *
+ * at TWO commanded levels:
+ *
+ *   HI  DACREF 255 -> 2.040 V. Must land in an ABSOLUTE window. Catches a wrong
+ *       VREF (4.096 V -> 127, 2.5 V -> 208, 2.048/1.024 V -> 255) and a wrong
+ *       shift (>>2/>>3 -> ~141-208, >>5/>>6 -> ~50/~25).
+ *       ⭐ It is 2.040 V against VDD, so it checks VDD too. The AD_Ref check is
+ *       ratiometric and blind to VDD, yet every battery threshold is
+ *       ratiometric to VDD.
+ *   LO  DACREF 128 -> 1.024 V. 2 x LO must equal HI within +/-3. Catches a
+ *       wrong MUX: a stuck, open or wrong input does not halve when told to.
+ *
+ * ⛔ No knob, LCD line or coincidence can satisfy the pair, which is what made
+ * the AD_Ref pass unsafe on the PowerBook 100 (J12-19).
+ *
+ * Window: ref +/-4 % and VDD 4.75-5.50 V give HI 90.9-113.9. Predicted on #1
+ * (VDD 5.255 V, 2.62): HI 99, LO 49. ⛔ The window is the firmware's gross-fault
+ * check; the bench prediction (2.427 A3) is tighter and is a separate test. */
+#define PMGR_ADC_INT_DACREF_HI  255u
+#define PMGR_ADC_INT_DACREF_LO  128u
+#define PMGR_ADC_INT_HI_MIN      90u
+#define PMGR_ADC_INT_HI_MAX     115u
+#define PMGR_ADC_INT_PAIR_TOL     3u
+/* Extra ADC clocks of sampling for the ladder, whose impedance the datasheet
+ * does not give. 32 clocks at 375 kHz = 85 us. Restored to 0 afterwards, so
+ * the battery and AD_Ref conversions are timed exactly as before. */
+#define PMGR_ADC_INT_SAMPLEN     32u
+/* Reference and AC settle after enabling: tVREF_ST is 10 us typical on OSCHF
+ * (DS Table 39-17). 10x that, and the first conversion is discarded too. */
+#define PMGR_ADC_INT_SETTLE_US  100u
+
+_Static_assert(PMGR_ADC_INT_HI_MAX < 127u,
+               "the window must reject a 4.096 V reference (HI ~127)");
+_Static_assert(PMGR_ADC_INT_HI_MIN > 52u,
+               "the window must reject a >>5 shift (HI ~50)");
+
+/* The verdict on one HI/LO pair. Pure, so the tests can walk its edges. */
+static inline bool pmgr_adc_internal_in_spec(uint8_t hi, uint8_t lo)
+{
+    uint16_t two_lo = (uint16_t)(2u * lo);
+    return hi >= PMGR_ADC_INT_HI_MIN && hi <= PMGR_ADC_INT_HI_MAX &&
+           two_lo + PMGR_ADC_INT_PAIR_TOL >= hi &&
+           two_lo <= (uint16_t)(hi + PMGR_ADC_INT_PAIR_TOL);
+}
+
+/* Bits of pmgr_adc_scale_bits(), read at $305. */
+#define PMGR_ADC_BIT_INTERNAL_OK  0x01u
+#define PMGR_ADC_BIT_IN0_OK       0x02u   /* report only - gates nothing */
+
 void    pmgr_adc_init(void);
 
 /* True only once the ADC scale has been VERIFIED against a live AD_Ref. While
@@ -253,8 +310,17 @@ void    pmgr_adc_init(void);
  *
  * ⛔ NOT decided at init. AD_Ref sits on the SWITCHED rail and reads ~0 V while
  * the machine is off, which is when init runs, so the verdict starts UNKNOWN
- * and is settled later by pmgr_adc_recheck_scale(). MEASUREMENTS.md 2.56. */
+ * and is settled later by pmgr_adc_recheck_scale(). MEASUREMENTS.md 2.56.
+ *
+ * ⭐ 2.427: true = the internal DACREF check passed AND no conversion is
+ * currently faulted. The AD_Ref check only reports. */
 bool    pmgr_adc_scale_ok(void);
+
+/* The internal check's last HI and LO readings ($303/$304), and the verdict
+ * bits ($305, PMGR_ADC_BIT_*). For the bench; nothing gates on them. */
+uint8_t pmgr_adc_internal_hi(void);
+uint8_t pmgr_adc_internal_lo(void);
+uint8_t pmgr_adc_scale_bits(void);
 
 /* Re-evaluate the scale against AD_Ref. Called from the 1 Hz tick.
  *
@@ -264,7 +330,9 @@ bool    pmgr_adc_scale_ok(void);
  * ⛔ A low reading means "rail down, no information" ONLY when the reference was
  * not expected. With the machine on, a low reading is a GROSS FAILURE - a wrong
  * shift truncates to 0 and an open MUX can read 0 - and must fail the check.
- * ⭐ The PASS is latched; FAILED is not. */
+ * ⭐ The PASS is latched; FAILED is not.
+ * ⭐ 2.427: also re-runs the internal DACREF check until it passes; that one
+ * needs no rail, so `ref_expected` does not apply to it. */
 void    pmgr_adc_recheck_scale(bool ref_expected);
 
 /* True once any conversion has EVER timed out - latched, diagnostic only, and

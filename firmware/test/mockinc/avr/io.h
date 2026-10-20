@@ -19,7 +19,7 @@ typedef struct { volatile uint8_t CTRLA, CTRLB, CTRLC, CTRLD, CTRLE,
                  volatile uint16_t RES, WINLT, WINHT; } ADC_t;
 extern ADC_t ADC0;
 
-typedef struct { volatile uint8_t ADC0REF, ADC1REF, DAC0REF; } VREF_t;
+typedef struct { volatile uint8_t ADC0REF, reserved_1, DAC0REF, reserved_2, ACREF; } VREF_t;
 extern VREF_t VREF;
 
 typedef struct { volatile uint8_t CTRLA, STATUS, INTCTRL, INTFLAGS, TEMP,
@@ -135,5 +135,15 @@ extern SLPCTRL_t SLPCTRL;
 #define SLPCTRL_SMODE_IDLE_gc    0x00u
 #define SLPCTRL_SMODE_PDOWN_gc   0x04u
 #define VREF_ALWAYSON_bm         0x80u
+
+/* ⭐ Added 2026-10-15 for the internal DACREF scale check (MEASUREMENTS 2.427). */
+typedef struct { volatile uint8_t CTRLA, CTRLB, MUXCTRL, reserved[2], DACREF,
+                                  INTCTRL, STATUS; } AC_t;
+extern AC_t AC0;
+#define ADC_MUXPOS_DACREF0_gc    0x49u
+#define VREF_REFSEL_2V048_gc     0x01u
+#define AC_ENABLE_bm             0x01u
+#define AC_MUXPOS_AINP0_gc       0x00u
+#define AC_MUXNEG_DACREF_gc      0x03u
 
 #endif

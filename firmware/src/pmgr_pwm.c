@@ -60,6 +60,11 @@ void pmgr_pwm_init(void)
      * original's PWM_Ctrl_Reg bit 0 (:201 on, :1353 off, :1396 on). */
     PORTMUX.CCLROUTEA = PORTMUX_LUT2_ALT1_gc;           /* LUT2 out -> PD6 */
 
+    /* ⛔ CCL OFF while LUT2 is configured - the AVR-DB erratum, see
+     * pmgr_pwm_enable(). Reset leaves it off; this keeps init right if it is
+     * ever called again. */
+    CCL.CTRLA     = 0;
+    CCL.LUT2CTRLA = 0;                                  /* and the LUT off: 31.3.1.1 */
     CCL.LUT2CTRLB = CCL_INSEL0_TCA0_gc | CCL_INSEL1_MASK_gc;
     CCL.LUT2CTRLC = CCL_INSEL2_MASK_gc;
     CCL.TRUTH2    = 0x02u;                              /* out = IN0 */
@@ -75,11 +80,42 @@ void pmgr_pwm_enable(bool on)
      * control - and pmgr_ports_init() already leaves it an output driven LOW,
      * so switching the PWM off parks the pin low rather than floating it.
      *
-     * LUTnCTRLA is written with the LUT disabled, as the datasheet requires
-     * for a configuration change. */
+     * ⛔⛔ THE WHOLE CCL MUST BE OFF FOR THIS WRITE (MEASUREMENTS.md 2.431).
+     * Microchip's AVR128DB errata (DS80000915), "The CCL Must be Disabled to
+     * Change the Configuration of a Single LUT" (silicon A4/A5): disabling
+     * just the LUT is NOT enough. This used to write LUT2CTRLA twice with
+     * CCL.CTRLA still enabled - which the datasheet allows - and on affected
+     * parts the OUTEN write was IGNORED. PD6 stayed a port output driven
+     * low, so pin 57 never carried the PWM on any board, unnoticed because
+     * the Portable's LCD on that line was disconnected (2.189: "effect on
+     * the LCD contrast line is not observed"). On a PowerBook 100 that line
+     * is the BACKLIGHT BRIGHTNESS.
+     *
+     * ⛔⛔ AND THE LUT ITSELF MUST BE OFF TOO - TWO RULES, BOTH REQUIRED.
+     * Datasheet 31.3.1.1: OUTEN is enable-protected by the LUT's OWN ENABLE;
+     * it may only change while the LUT is disabled, or in the same write that
+     * turns ENABLE on. The original code obeyed that (LUT2CTRLA = 0 first) and
+     * broke the erratum; the first fix (32fab497) obeyed the erratum and
+     * dropped the LUT-off step. Both left OUTEN clear - read back 0x01 from
+     * the running chip, silicon A5 (REVID 0x15), MEASUREMENTS.md 2.431.
+     *
+     *     CCL off -> LUT2 off -> LUT2 = ENABLE (+OUTEN) -> CCL on
+     *
+     * LUT2 is the only LUT in use, so switching the CCL off for these writes
+     * disturbs nothing else; the pin sits at its port value (low) for that
+     * instant. */
+    CCL.CTRLA     = 0;
     CCL.LUT2CTRLA = 0;
     CCL.LUT2CTRLA = on ? (uint8_t)(CCL_ENABLE_bm | CCL_OUTEN_bm)
                        : (uint8_t)(CCL_ENABLE_bm);
+    CCL.CTRLA     = CCL_ENABLE_bm;
+}
+
+bool pmgr_pwm_is_enabled(void)
+{
+    return (CCL.CTRLA & CCL_ENABLE_bm) != 0u &&
+           (CCL.LUT2CTRLA & (CCL_ENABLE_bm | CCL_OUTEN_bm)) ==
+               (CCL_ENABLE_bm | CCL_OUTEN_bm);
 }
 
 void pmgr_contrast_set(uint8_t value)
@@ -101,3 +137,42 @@ void pmgr_contrast_validate(void)
     if (s_contrast == 0u || s_contrast >= 0x20u)
         s_contrast = PMGR_CONTRAST_DEF;                 /* 196 ldm #4,$2E */
 }
+
+#ifdef PMGR_PWM_DIAG
+/* ⛔ DIAGNOSTIC BUILD ONLY - see pmgr_pwm.h. Layout is fixed so a UPDI read can be decoded by hand:
+ *   [0]  0xD1 magic             [1]  snapshots taken (wraps)   [2]  SYSCFG.REVID (silicon revision)
+ *   [3]  CCL.CTRLA              [4]  CCL.LUT2CTRLA             [5]  LUT2CTRLB    [6] LUT2CTRLC   [7] TRUTH2
+ *   [8]  PORTMUX.CCLROUTEA      [9]  PORTMUX.TCAROUTEA         [10] TCA0.CTRLA   [11] TCA0.CTRLB [12] TCA0.CTRLD
+ *   [13] CNT lo  [14] CNT hi    [15] CNT lo  [16] CNT hi  (two reads ~50 us apart: does the timer count?)
+ *   [17] PER lo  [18] PER hi    [19] CMP0 lo [20] CMP0 hi
+ *   [21] PORTD.DIR  [22] PORTD.OUT  [23] PORTD.PIN6CTRL
+ *   [24] PD6 HIGH count of 125 samples   [25] PD6 LOW->HIGH edges seen in those samples
+ *   [26] s_contrast */
+#include <util/delay.h>
+volatile uint8_t g_pwmdiag[27];
+
+void pmgr_pwm_diag_snapshot(void)
+{
+    static uint8_t div;
+    if (++div < 4u) return;                 /* every 4 s: keep the main loop's busy time small */
+    div = 0;
+    volatile uint8_t *d = g_pwmdiag;
+    d[0] = 0xD1u; d[1]++; d[2] = SYSCFG.REVID;
+    d[3] = CCL.CTRLA; d[4] = CCL.LUT2CTRLA; d[5] = CCL.LUT2CTRLB; d[6] = CCL.LUT2CTRLC; d[7] = CCL.TRUTH2;
+    d[8] = PORTMUX.CCLROUTEA; d[9] = PORTMUX.TCAROUTEA;
+    d[10] = TCA0.SINGLE.CTRLA; d[11] = TCA0.SINGLE.CTRLB; d[12] = TCA0.SINGLE.CTRLD;
+    uint16_t c1 = TCA0.SINGLE.CNT; _delay_us(50); uint16_t c2 = TCA0.SINGLE.CNT;
+    d[13] = (uint8_t)c1; d[14] = (uint8_t)(c1 >> 8); d[15] = (uint8_t)c2; d[16] = (uint8_t)(c2 >> 8);
+    uint16_t per = TCA0.SINGLE.PER, cmp = TCA0.SINGLE.CMP0;
+    d[17] = (uint8_t)per; d[18] = (uint8_t)(per >> 8); d[19] = (uint8_t)cmp; d[20] = (uint8_t)(cmp >> 8);
+    d[21] = PORTD.DIR; d[22] = PORTD.OUT; d[23] = PORTD.PIN6CTRL;
+    /* 125 samples x ~8 us = ~1 ms, one PWM period at 931 Hz (interrupts still run) */
+    uint8_t hi = 0, edges = 0, prev = 0;
+    for (uint8_t i = 0; i < 125u; i++) {
+        uint8_t now = (PORTD.IN & PMGR_PWM_bm) ? 1u : 0u;
+        hi += now; if (now && !prev && i) edges++; prev = now;
+        _delay_us(8);
+    }
+    d[24] = hi; d[25] = edges; d[26] = s_contrast;
+}
+#endif

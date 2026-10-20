@@ -96,7 +96,12 @@
  * wrong", and latching a failure from it disables the battery thresholds for
  * the life of the session (MEASUREMENTS.md 2.56). */
 typedef enum { SCALE_UNKNOWN = 0, SCALE_OK, SCALE_FAILED } scale_state_t;
-static scale_state_t s_scale;
+static scale_state_t s_scale;           /* AD_Ref divider - Portable only */
+/* ⭐ The internal DACREF check (2.427). Same tri-state and the same rule: OK
+ * latches, FAILED is retried. Its source is always present, so it is UNKNOWN
+ * only until the first conversion pair completes. */
+static scale_state_t s_internal;
+static uint8_t s_int_hi, s_int_lo;
 /* AD_Reg ($EF) - the most recent COMPLETED conversion, any channel. */
 static uint8_t s_last_result;
 /* ⛔ TWO FLAGS, DELIBERATELY. Found by a defect-class sweep 2026-09-06 looking
@@ -245,9 +250,81 @@ static uint8_t convert(uint8_t muxpos)
  * conversion. An earlier comment here said "has ever timed out", which was true
  * of the latched flag it used to read and is not true now. The latched history
  * lives in s_adc_ever_faulted / pmgr_adc_faulted(). */
+/* ⭐ THE GATE IS THE INTERNAL CHECK ALONE (2.427, amended). One image serves the
+ * Portable and the PowerBook 100, as Apple's one program does: the AD_Ref
+ * divider check on IN0 still runs and REPORTS ($305 bit 1), but decides
+ * nothing - on a PowerBook 100 IN0 is J12-19, the LCD connector (2.69), and
+ * Apple's own firmware never acted on IN0 either (2.240). */
+static bool verdicts_ok(void)
+{
+    return s_internal == SCALE_OK;
+}
+
 bool pmgr_adc_scale_ok(void)
 {
-    return (s_scale == SCALE_OK) && !s_adc_fault && !s_batt_fault;
+    return verdicts_ok() && !s_adc_fault && !s_batt_fault;
+}
+
+/* ⭐ THE MACHINE-INDEPENDENT CHECK - see pmgr_adc.h and MEASUREMENTS.md 2.427.
+ *
+ * Everything it changes is restored before it returns: AC0 off, ACREF and
+ * DACREF at their reset values, SAMPCTRL as it was. ⚠️ Whether DACREF reaches
+ * the ADC with the AC DISABLED is not stated in the datasheet, so AC0 is
+ * enabled for the check. MUXPOS AINP0 is PD2 (FDB, a digital input); an AC
+ * input only senses, and the output is not routed to a pin.
+ *
+ * ⛔ AD_Reg ($EF) is restored too. The M50753 never converts these channels,
+ * so the host must never see their results there. */
+static uint8_t convert_dacref(uint8_t dacref, bool *ok)
+{
+    AC0.DACREF = dacref;
+    _delay_us(PMGR_ADC_INT_SETTLE_US);
+    (void)convert(ADC_MUXPOS_DACREF0_gc);   /* discard: ladder just moved */
+    uint8_t v = convert(ADC_MUXPOS_DACREF0_gc);
+    *ok = s_last_convert_ok;
+    return v;
+}
+
+static void check_internal(void)
+{
+    uint8_t saved_last = s_last_result;
+    uint8_t saved_samp = ADC0.SAMPCTRL;
+    bool hi_ok, lo_ok;
+
+    VREF.ACREF    = VREF_REFSEL_2V048_gc;
+    AC0.MUXCTRL   = AC_MUXPOS_AINP0_gc | AC_MUXNEG_DACREF_gc;
+    AC0.CTRLA     = AC_ENABLE_bm;
+    ADC0.SAMPCTRL = PMGR_ADC_INT_SAMPLEN;
+
+    uint8_t hi = convert_dacref(PMGR_ADC_INT_DACREF_HI, &hi_ok);
+    uint8_t lo = convert_dacref(PMGR_ADC_INT_DACREF_LO, &lo_ok);
+
+    AC0.CTRLA     = 0u;
+    AC0.MUXCTRL   = 0u;
+    AC0.DACREF    = 0xFFu;                  /* reset value */
+    VREF.ACREF    = 0u;                     /* reset value */
+    ADC0.SAMPCTRL = saved_samp;
+    s_last_result = saved_last;
+
+    /* ⛔ A timeout is NOT a verdict. convert() has already raised s_adc_fault,
+     * which holds pmgr_adc_scale_ok() false until a conversion completes; the
+     * check is simply tried again next tick. Nor is the stand-in value a
+     * reading: $303/$304 keep the last pair that really completed. */
+    if (!hi_ok || !lo_ok) return;
+    s_int_hi   = hi;
+    s_int_lo   = lo;
+    s_internal = pmgr_adc_internal_in_spec(hi, lo) ? SCALE_OK : SCALE_FAILED;
+}
+
+uint8_t pmgr_adc_internal_hi(void) { return s_int_hi; }
+uint8_t pmgr_adc_internal_lo(void) { return s_int_lo; }
+
+uint8_t pmgr_adc_scale_bits(void)
+{
+    uint8_t b = 0u;
+    if (s_internal == SCALE_OK) b |= PMGR_ADC_BIT_INTERNAL_OK;
+    if (s_scale    == SCALE_OK) b |= PMGR_ADC_BIT_IN0_OK;
+    return b;
 }
 
 /* Re-evaluate the ADC scale against AD_Ref. Called from the 1 Hz tick.
@@ -277,24 +354,29 @@ bool pmgr_adc_scale_ok(void)
  * later, valid one disagrees. */
 void pmgr_adc_recheck_scale(bool ref_expected)
 {
-    if (s_scale == SCALE_OK) {
-        return;                         /* latched - see above */
+    /* ⭐ The internal check first: no rail needed, latched like the other. */
+    if (s_internal != SCALE_OK) {
+        check_internal();
     }
 
-    uint8_t ref = convert(ADC_MUXPOS_AIN7_gc);
+    /* ⭐ REPORT ONLY - see verdicts_ok(). Kept because on a Portable a pass
+     * also confirms the external divider and the IN0 path. */
+    if (s_scale != SCALE_OK) {          /* latched - see above */
+        uint8_t ref = convert(ADC_MUXPOS_AIN7_gc);
 
-    if (ref < PMGR_ADC_REF5V_FLOOR) {
-        /* Reference absent. Only a failure if it should have been there. */
-        if (ref_expected) {
-            s_scale = SCALE_FAILED;
+        if (ref < PMGR_ADC_REF5V_FLOOR) {
+            /* Reference absent. Only a failure if it should have been there. */
+            if (ref_expected) {
+                s_scale = SCALE_FAILED;
+            }
+        } else {
+            s_scale = (ref >= (uint8_t)(PMGR_ADC_REF5V_EXPECT - PMGR_ADC_REF5V_TOL) &&
+                       ref <= (uint8_t)(PMGR_ADC_REF5V_EXPECT + PMGR_ADC_REF5V_TOL))
+                      ? SCALE_OK : SCALE_FAILED;
         }
-        return;
     }
-    s_scale = (ref >= (uint8_t)(PMGR_ADC_REF5V_EXPECT - PMGR_ADC_REF5V_TOL) &&
-               ref <= (uint8_t)(PMGR_ADC_REF5V_EXPECT + PMGR_ADC_REF5V_TOL))
-              ? SCALE_OK : SCALE_FAILED;
 #ifndef PMGR_LOOP_MARKER            /* marker builds own DBG2 */
-    if (s_scale == SCALE_OK) DBG2_PORT.OUTSET = DBG2_bm;
+    if (verdicts_ok()) DBG2_PORT.OUTSET = DBG2_bm;
 #endif
 }
 
@@ -340,8 +422,10 @@ void pmgr_adc_init(void)
      */
     (void)convert(ADC_MUXPOS_AIN7_gc);
     (void)convert(ADC_MUXPOS_AIN7_gc);
-    s_scale = SCALE_UNKNOWN;
-    /* The machine is off at init, so the reference is NOT expected here. */
+    s_scale    = SCALE_UNKNOWN;
+    s_internal = SCALE_UNKNOWN;
+    /* The machine is off at init, so the reference is NOT expected here.
+     * ⭐ The internal check needs no rail and normally settles right here. */
     pmgr_adc_recheck_scale(false);
 
     /* Report it on DBG2 so the result is readable with a DMM the moment the
@@ -356,7 +440,7 @@ void pmgr_adc_init(void)
      * The self-test build uses all three for its own result code instead. */
 #ifndef PMGR_LOOP_MARKER            /* marker builds own DBG2 */
     DBG2_PORT.DIRSET = DBG2_bm;
-    if (s_scale == SCALE_OK) DBG2_PORT.OUTSET = DBG2_bm;
+    if (verdicts_ok()) DBG2_PORT.OUTSET = DBG2_bm;
     else            DBG2_PORT.OUTCLR = DBG2_bm;
 #endif
 }

@@ -2,7 +2,8 @@
 
 Known-good values to check your machine against. Everything here was **measured on our own two
 Portables**: one fitted with this replacement, and one **unmodified** (original hybrid, original
-M50753), which is the reference for anything the hybrid produces.
+M50753), which is the reference for anything the hybrid produces. The
+[PowerBook 100](#powerbook-100) section was measured on one PowerBook 100, first with its original chip.
 
 ⚠️ One unmodified machine is a small sample. Expect your readings to differ by tens of millivolts;
 a difference of tenths of a volt is worth looking into.
@@ -256,6 +257,31 @@ asleep; 0.08–0.10 A once floating.
 
 If you have a Portable with an original hybrid, a logged charge with the pack voltage at
 termination would still help.
+
+## PowerBook 100
+
+**Where to probe.** On the PowerBook 100 logic board the PMGR is **U22**, and **all of its test points
+are on the underside** — so powered readings need the logic board out of the case, upside down on an
+insulating mat. The points were found by continuity from U22's leads:
+
+| signal | M50753 pin | where |
+|---|---|---|
+| battery sense (`IN1`) | 52 | C10's live end; `TP066` (A/D) through R62, 1 kΩ |
+| PWM — backlight brightness | 57 | `TP019` |
+| brightness dial (`IN0`) | 54 | J12 pin 19 |
+| +5 V always-on (the PMGR's supply and A/D reference) | 55 | `TP053` |
+| battery + | — | `TP052` `BATT_VOLTAGE` — only while the battery-bay plunger is held in |
+
+**Battery sense, original chip, Mac switched off** (bench supply on the battery contacts, plunger held):
+
+| supply | `TP052` | C10 (IN1) | `TP066` | `TP053` | A/D count = IN1 / REF × 255 |
+|---|---|---|---|---|---|
+| 6.20 V | 6.20 | 2.191 | 2.191 | 5.215 | 107.1 |
+| 6.40 V | 6.38 | 2.567 | 2.570 | 5.215 | 125.5 |
+
+Both are within about 1 count of the Portable's line above — the same circuit and scale. Current with
+the Mac off: about 4–9 mA. Mac OS's low-battery sequence on this machine with its original chip is in
+[`VERIFIED.md`](VERIFIED.md#powerbook-100).
 
 ## Board checks
 

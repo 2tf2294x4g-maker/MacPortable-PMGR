@@ -1,7 +1,7 @@
 # Macintosh Portable PMGR replacement
 
-An open replacement for the **Mitsubishi M50753 power manager (PMGR)** in the Macintosh Portable.
-The original chip is irreplaceable when it fails; this is a small two-board stack that solders onto
+An open replacement for the **Mitsubishi M50753 power manager (PMGR)** in the Macintosh Portable
+and the **PowerBook 100**, which use the same chip. The original chip is irreplaceable when it fails; this is a small two-board stack that solders onto
 its footprint and runs open firmware on a Microchip **AVR128DB64**, reproducing the original's
 behaviour toward the Mac.
 
@@ -22,31 +22,48 @@ behaviour toward the Mac.
 <td><img src="images/interposer-on-logic-board.jpg" alt="The interposer soldered to the M50753 footprint"><br>The interposer soldered to the original footprint. This first batch is labelled <code>PMGR Chip</code>; boards made from the current files say <code>J1</code>.</td>
 <td><img src="images/mcu-board-front.jpg" alt="MCU board, top side"><br>MCU board, top: the AVR128DB64 and the UPDI programming header <code>J2</code>.<br><br><img src="images/mcu-board-back.jpg" alt="MCU board, underside"><br>Underside: the DF12 socket <code>J1</code>, and the <code>BAT54S</code> + 1 kΩ clamp on the battery-sense line.</td>
 </tr>
+<tr>
+<td><img src="images/pb100-mcu-board-at-u22.jpg" alt="The replacement stack at U22 on a PowerBook 100 logic board"><br><b>PowerBook 100:</b> the same stack at U22, beside the VIA. The CPU board fits over it; the wires are the programming header, brought out for development.</td>
+<td><img src="images/pb100-running-7.5.3.jpg" alt="A PowerBook 100 at the Finder under System 7.5.3, running on the replacement"><br>The PowerBook 100 at the Finder under System 7.5.3, running on the replacement PMGR.<br><br><img src="images/pb100-powerbook-control-panel.jpg" alt="The PowerBook control panel under System 7.5.3"><br>Its PowerBook control panel. The backlight brightness dial works through the replacement.</td>
+</tr>
 </table>
 
 ## Status — version 0.1, prototype
 
-**Working in a Macintosh Portable.** It boots, sleeps and wakes, shuts down and honours the reset
-switch under System 6.0.8 and 7.5.3, and a supervised fast charge terminates correctly.
+**Working in a Macintosh Portable and, since 0.1.15, a PowerBook 100.**
 
-It has **only been installed and tested in a Macintosh Portable M5120** (the original, non-backlit
-model), with a second, unmodified Portable kept as the reference. **The backlit Portable (M5126) has not
-been tried.**
+- **Macintosh Portable M5120** (the original, non-backlit model): it boots, sleeps and wakes, shuts down
+  and honours the reset switch under System 6.0.8 and 7.5.3, and a supervised fast charge terminates
+  correctly. A second, unmodified Portable is kept as the reference. **The backlit Portable (M5126)
+  has not been tried.**
+- ⭐ **PowerBook 100** (one machine, System 7.5.3): it boots to the Finder, the **brightness dial**
+  works, it sleeps and wakes, and Mac OS shows its whole low-battery sequence and then sleeps the
+  machine. The same boards and the same firmware fit both machines; no PowerBook-specific build is
+  needed. **Not yet:** charging (no battery for it yet, so it is uncalibrated and ran on a bench
+  supply), SCSI Disk Mode (cause found, likely fix under review), and a closed case. See [`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100).
 
-**0.1.12 fixes how fast charge is handled across sleep** — on 0.1.11 and earlier, don't let the
-Mac sleep during a fast charge. It also supports **replacement (recreation) hybrids**, which cut the
-power at a higher battery voltage: the calibration record says which hybrid is fitted, and the
-low-battery warnings are placed to suit it. See [`docs/VERIFIED.md`](docs/VERIFIED.md).
-⛔ **Upgrading from 0.1.11 or earlier: rebuild your `calib.args` with `--hybrid` before flashing**
-— see [`docs/BUILD.md`](docs/BUILD.md) §7. 0.1.13's flash tool refuses the old record format.
-**0.1.14 lowers the recreation-hybrid warning levels** (about 6.10 V warning / 6.02 V sleep, from 6.20 / 6.05 V):
-on a real pack the old levels warned with hours of use left. Tested on two packs; Mac OS then times its own
-warnings and sleep. See [`docs/VERIFIED.md`](docs/VERIFIED.md).
+**0.1.15 brings the PowerBook 100 up, and fixes two things every earlier version got wrong:**
+- ⛔ **The PWM output (M50753 pin 57) was never driven** on 0.1.14 and earlier, because of an
+  AVR128DB silicon erratum. On the Portable that line is the **LCD contrast**, so the contrast control
+  could not have worked; it went unnoticed because the development Portable's original LCD is not
+  connected. On the PowerBook 100 the line is the **backlight brightness**. Now fixed: measured with
+  a scope on the Portable, and seen on the PowerBook's backlight.
+- **A register the PowerBook 100 ROM reads** (`$EE`) answered 0, which made the PowerBook boot
+  straight into SCSI Disk Mode. It now answers as the original does, and seven more of the
+  original's port and PWM registers now read back as they do on the original.
+- The battery-reading self-check (`DBG2`) now uses an internal reference, so it gives the same verdict
+  on both machines and is valid as soon as power is applied.
+
+Earlier releases: **0.1.12 fixed how fast charge is handled across sleep** (on 0.1.11 and earlier,
+don't let the Mac sleep during a fast charge) and added support for **replacement (recreation)
+hybrids**, which cut the power at a higher battery voltage; the calibration record says which hybrid
+is fitted. ⛔ **Upgrading from 0.1.11 or earlier: rebuild your `calib.args` with `--hybrid` before
+flashing** — see [`docs/BUILD.md`](docs/BUILD.md) §7; the flash tool refuses the old record format.
+**0.1.14 lowered the recreation-hybrid warning levels** to about 6.10 V warning / 6.02 V sleep.
 
 It is a **prototype**. Some parts of the charging behaviour have not been characterised on
-hardware yet, and the PowerBook 100 (which uses the same PMGR) has not been tried. Read
-[`docs/VERIFIED.md`](docs/VERIFIED.md) for exactly what has and has not been shown — before relying
-on it unattended.
+hardware yet. Read [`docs/VERIFIED.md`](docs/VERIFIED.md) for exactly what has and has not been
+shown — before relying on it unattended.
 
 ## Before you start: this is fine-pitch soldering
 
@@ -54,7 +71,7 @@ Building and fitting this needs **experienced surface-mount work** — it is not
 
 - a **0.5 mm-pitch TQFP-64** (the AVR) and two **50-pin, 0.5 mm-pitch** Hirose DF12 connectors;
 - **0402** resistors and capacitors (about 1 × 0.5 mm), several on the board's **underside**;
-- removing the original **60-lead power manager** from the Mac's logic board, then soldering the
+- removing the original **60-lead power manager** from the Mac's logic board (U22 on a PowerBook 100), then soldering the
   interposer's **castellated edges** onto that footprint.
 
 You'll want a hot-air station with preheat, a fine-tip iron, flux, solder wick, and magnification —
@@ -67,6 +84,8 @@ See [`docs/BUILD.md`](docs/BUILD.md).
 - **The battery-sense input of an ORIGINAL M50753 is unprotected.** On a machine still carrying
   the original chip, never put more than **6.5 V** on the battery input while probing; over-driving
   that pin is a documented way to destroy the chip. (This design adds a clamp on that line.)
+  The same applies to a **PowerBook 100**: its battery sense is the same circuit.
+  The same applies to a **PowerBook 100**, whose battery sense is the same circuit.
 - **Never take power from the floppy connector (J15)** for accessories such as an LCD controller.
   It destroyed a PMGR during development.
 - **Supervise the first charge.** The charger was designed for the original Gates/EnerSys Cyclon
