@@ -77,6 +77,7 @@ typedef struct { volatile uint8_t MCLKCTRLA, MCLKCTRLB, MCLKLOCK, MCLKSTATUS,
 extern CLKCTRL_t CLKCTRL;
 
 #define PORT_ISC_INPUT_DISABLE_gc  0x04u
+#define PORT_PULLUPEN_bm           0x08u
 #define VREF_REFSEL_VDD_gc         0x05u
 #define ADC_PRESC_DIV64_gc         0x06u
 #define ADC_ENABLE_bm              0x01u

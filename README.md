@@ -26,6 +26,9 @@ behaviour toward the Mac.
 <td><img src="images/pb100-mcu-board-at-u22.jpg" alt="The replacement stack at U22 on a PowerBook 100 logic board"><br><b>PowerBook 100:</b> the same stack at U22, beside the VIA. The CPU board fits over it; the wires are the programming header, brought out for development.</td>
 <td><img src="images/pb100-running-7.5.3.jpg" alt="A PowerBook 100 at the Finder under System 7.5.3, running on the replacement"><br>The PowerBook 100 at the Finder under System 7.5.3, running on the replacement PMGR.<br><br><img src="images/pb100-powerbook-control-panel.jpg" alt="The PowerBook control panel under System 7.5.3"><br>Its PowerBook control panel. The backlight brightness dial works through the replacement.</td>
 </tr>
+<tr>
+<td colspan="2"><img src="images/pb100-scsi-disk-mode.jpg" alt="The PowerBook 100's SCSI Disk Mode screen: a SCSI symbol with ID 1" width="60%"><br><b>SCSI Disk Mode</b> on the replacement (0.1.16, with the pin-48 wire): HDI-30 pin 1 grounded at startup, and the PowerBook shows its disk-mode screen with SCSI ID 1.</td>
+</tr>
 </table>
 
 ## Status — version 0.1, prototype
@@ -39,10 +42,23 @@ behaviour toward the Mac.
 - ⭐ **PowerBook 100** (one machine, System 7.5.3): it boots to the Finder, the **brightness dial**
   works, it sleeps and wakes, and Mac OS shows its whole low-battery sequence and then sleeps the
   machine. The same boards and the same firmware fit both machines; no PowerBook-specific build is
-  needed. **Not yet:** charging (no battery for it yet, so it is uncalibrated and ran on a bench
-  supply), SCSI Disk Mode (cause found, likely fix under review), and a closed case. See [`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100).
+  needed. ⭐ Since 0.1.16, **SCSI Disk Mode works** with one extra wire on the boards (below).
+  **Not yet:** charging (no battery for it yet, so it is uncalibrated and ran on a bench supply), and
+  a closed case. See [`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100).
 
-**0.1.15 brings the PowerBook 100 up, and fixes two things every earlier version got wrong:**
+**0.1.16 makes SCSI Disk Mode work on the PowerBook 100**, and fixes two more registers the Mac can read:
+- **Disk mode:** the SCSI Disk Adapter grounds a pin on the HDI-30 port, which reaches the PMGR's
+  **pin 48**. The boards don't connect pin 48 yet, so it needs **one hand-added wire** through the
+  connector's spare position 50 ([`docs/BUILD.md`](docs/BUILD.md)). With it, grounding that pin at
+  startup gives the PowerBook's SCSI disk-mode screen, as the original does. Without it, the machine
+  simply boots normally, and the same firmware still runs a Portable.
+- **The internal disk's power at startup:** the PowerBook 100 ROM checks one PMGR port bit at every
+  boot and switched the internal disk's power off when it read 0, as it did on 0.1.15 and earlier.
+  It now reads 1, as on the original.
+- **The clock through the memory-read command** (`$25`–`$29`) came back byte-reversed, and its
+  checksum read 0. Both now match the original. The normal time commands were always correct.
+
+**0.1.15 brought the PowerBook 100 up, and fixed two things every earlier version got wrong:**
 - ⛔ **The PWM output (M50753 pin 57) was never driven** on 0.1.14 and earlier, because of an
   AVR128DB silicon erratum. On the Portable that line is the **LCD contrast**, so the contrast control
   could not have worked; it went unnoticed because the development Portable's original LCD is not

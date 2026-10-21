@@ -97,9 +97,12 @@ void    pmgr_pram_zero(void)                  { memset(s_pram, 0, sizeof s_pram)
 bool    pmgr_pram_flush(void)                 { return true; }
 uint8_t pmgr_pram_checksum(bool *valid)       { if (valid) *valid = true; return 0; }
 static uint32_t s_time;
+static uint8_t  s_time_sum;
+static uint8_t  time_combine(void)  { return (uint8_t)((s_time >> 24) + (s_time >> 16) + (s_time >> 8) + s_time); }
 uint32_t pmgr_time_get(void)        { return s_time; }
-void     pmgr_time_set(uint32_t t)  { s_time = t; }
-void     pmgr_time_tick(void)       { s_time++; }
+void     pmgr_time_set(uint32_t t)  { s_time = t; s_time_sum = time_combine(); }
+void     pmgr_time_tick(void)       { s_time++; s_time_sum = time_combine(); }
+uint8_t  pmgr_time_sum_get(void)    { return s_time_sum; }
 
 /* ---- PWM / contrast ----------------------------------------------------- */
 static uint8_t s_contrast = 4u;

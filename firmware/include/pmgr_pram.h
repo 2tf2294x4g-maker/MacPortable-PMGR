@@ -116,5 +116,6 @@ uint32_t pmgr_time_get(void);
 void     pmgr_time_set(uint32_t t);
 void     pmgr_time_tick(void);      /* call once per second */
 uint8_t  pmgr_time_combine(void);   /* CombineTime -> the `Time` checksum byte */
+uint8_t  pmgr_time_sum_get(void);   /* the STORED `Time` byte ($29), as last written */
 
 #endif /* PMGR_PRAM_H */

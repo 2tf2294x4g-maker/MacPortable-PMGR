@@ -15,6 +15,22 @@ Read the safety notes in the top-level [`README`](../README.md) first.
 > below with `--hybrid original`. Calibration and charging have **not yet been tried** on a PowerBook
 > 100 — see [`VERIFIED.md`](VERIFIED.md#powerbook-100) and the probe points in
 > [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md#powerbook-100).
+>
+> **SCSI Disk Mode needs one extra wire** (0.1.16 or later). The disk-mode signal arrives on the
+> M50753's **pin 48**, which these boards don't connect. Route it through the DF12's spare
+> **position 50** (unconnected on both boards), so the stack still comes apart:
+> 1. **Interposer:** fine magnet wire (about 0.1 mm) from **castellation 48** to the foot of the DF12
+>    header's **pin 50**. Pin 50 is the corner pin of the row nearer castellations 46–60, at the end
+>    nearer castellation 48.
+> 2. **MCU board:** from the foot of the DF12 socket's **pin 50** (underside), around the board edge,
+>    to the AVR's **pin 46 (PF2)**: the third leg from the corner on the side carrying legs 33–48,
+>    next to leg 47 (`DBG2`).
+>
+> ⛔ **Pin 49, next to pin 50, is ground on both boards**, and leg 47 is `DBG2`, an output. Before power:
+> pin 50 (or leg 46) to ground must read **open**, leg 46 to leg 47 **open**, and, stacked, HDI-30
+> pin 1 to leg 46 about **91 Ω**. Keep solder on the lead feet, out of the connector's contacts.
+> Without the wire everything else works; the machine just can't enter disk mode. On a Portable the
+> wire is not needed.
 
 ## 0. Skills and tools
 

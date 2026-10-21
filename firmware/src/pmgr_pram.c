@@ -491,6 +491,11 @@ void pmgr_time_tick(void)                           /* inc timeA, carry upward *
     s_time_sum = pmgr_time_combine();               /* :594-595 */
 }
 
+/* $29 `Time` as STORED - what the original's RAM holds, refreshed on every
+ * tick and time write. Not recomputed here: after a corrupting reset the stored
+ * and combined values differ, and that difference is what the byte exists for. */
+uint8_t pmgr_time_sum_get(void) { return s_time_sum; }
+
 uint8_t pmgr_time_combine(void)
 {
     /* CombineTime: 0 + timeD + timeC + timeB + timeA, 8-bit wrap */

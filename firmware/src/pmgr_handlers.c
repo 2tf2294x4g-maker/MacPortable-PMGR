@@ -15,6 +15,16 @@
 #endif
 #include <util/delay.h>
 
+/* ⭐ SCSI Disk Mode input (MEASUREMENTS.md 2.434). NOT a net on the MCU board, so
+ * not in the generated pmgr_pins.h: a hand wire from interposer castellation 48
+ * (M50753 pin 48 = IN5; on the PowerBook 100, HDI-30 pin 1 through ~91 ohm) to
+ * PF2, TQFP 46 - the free pin nearest castellation 48 (5.7 mm, stacked).
+ * Pulled up internally, so a board WITHOUT the wire reads 1 = normal boot,
+ * exactly as before. The SCSI Disk Adapter grounds it: 0 = disk mode. */
+#define DISK_MODE_PORT   PORTF
+#define DISK_MODE_bm     (1U << 2)                   /* PF2 */
+#define DISK_MODE_CTRL   PIN2CTRL
+
 /* Apple's %10011111 - the "everything off" power byte. Written in TWO places
  * and it must be the same value in both, which is why it is defined once:
  *
@@ -230,6 +240,11 @@ static void ports_init_p0(uint8_t p0)
      * bring-up, releasing one instruction before CommandReceive. */
     ASSERT_LOW(SYS_RST_N_PORT, SYS_RST_N_bm);
     SYS_RST_N_PORT.DIRSET = SYS_RST_N_bm;
+
+    /* In_Reg bit 5's source, see DISK_MODE_PORT: an input, never driven - the
+     * adapter shorts it to ground - with the pull-up giving the idle 1. */
+    DISK_MODE_PORT.DIRCLR         = DISK_MODE_bm;
+    DISK_MODE_PORT.DISK_MODE_CTRL = PORT_PULLUPEN_bm;
 }
 
 void pmgr_ports_init(bool cold)
@@ -1578,10 +1593,14 @@ uint8_t pmgr_mem_read(uint16_t addr)
     case 0x0024u: return s_sec_divider;             /* /60 divider  */
 
     case 0x0025u: case 0x0026u: case 0x0027u: case 0x0028u: {
-        /* time D,C,B,A - D is the MSB and lives at the LOWEST address */
+        /* time D,C,B,A - D is the MSB and lives at the LOWEST address ($25).
+         * ⛔ This shifted by (addr - $25) and so returned the bytes REVERSED
+         * (time $12345678 read back 78 56 34 12 through $E8). timeRead ($38)
+         * was always right; only this $E8 view was wrong. */
         uint32_t t = pmgr_time_get();
-        return (uint8_t)(t >> (8u * (addr - 0x0025u)));
+        return (uint8_t)(t >> (8u * (3u - (addr - 0x0025u))));
     }
+    case 0x0029u: return pmgr_time_sum_get();      /* `Time` checksum - read 0 until 2026-10-20 */
     case 0x002Au: case 0x002Bu: case 0x002Cu: case 0x002Du:
         return (uint8_t)(s_wakeup_time >> (8u * (3u - (addr - 0x002Au))));
 
@@ -1626,7 +1645,15 @@ uint8_t pmgr_mem_read(uint16_t addr)
      *   5 HICHG  6 RING_DETECT  7 MODEM_A/B
      * NC is "not connected, probably for testing" (listing:111) - reported 0. */
     case 0x00E2u: {
-        uint8_t v = 0;
+        /* ⭐ bit 0 = P10, pin 36 (`NC = 0`, "not connected, probably for
+         * testing"): an OUTPUT (P1_DIR %10110101) that Apple's code sets to 1
+         * in InitPorts (pmgr.asm 177) and again at 577, and never clears. Not
+         * routed on either machine, so the latch is modelled: always 1.
+         * ⛔ It read 0 here, and the PowerBook 100 ROM CHECKS IT (MEASUREMENTS
+         * 2.436): at $39884 it reads $E2 and, if bit 0 or bit 7 is low, sends
+         * $10 $04 (hard-disk power OFF) and writes $E2 |= $81 - on every boot
+         * with our board, where the original skips it. */
+        uint8_t v = (uint8_t)(1u << 0);
         if (!PIN_IS_LOW(AKD_PORT,         AKD_bm))         v |= (1u << 1);
         if ((STOP_CLK_PORT.IN & STOP_CLK_bm) != 0u)        v |= (1u << 2);
         if (!PIN_IS_LOW(CHRG_ON_N_PORT,   CHRG_ON_N_bm))   v |= (1u << 3);
@@ -1673,17 +1700,17 @@ uint8_t pmgr_mem_read(uint16_t addr)
      * btst #29 = bit 5 of the reply; 0 -> the disk-mode screen at $3902A.
      * Apple's PMGR code never tests bit 5 (pmgr.asm reads only bits 2 and 3);
      * the original simply reflects its input pin.
-     *   bit 5  IN5 = pin 48, by the IN-port layout (bits 2/3 = IN2/IN3 = pins
-     *          51/50, Class A). The HDI-30 SCSI Disk Adapter grounds HDI-30
-     *          pin 1 (PB100 Developer Note p. 28); pin 1 -> U22 pad 48 is the
-     *          predicted path, ⬜ continuity not yet checked. Pin 48 is NOT
-     *          routed on this hardware, so we report 1 (normal boot) always:
-     *          disk mode cannot be entered until pin 48 reaches an AVR input.
+     *   bit 5  IN5 = pin 48. HDI-30 pin 1 -> U22 pad 48 measures 91 ohm (a
+     *          series resistor; pin 2 reads open), so the SCSI Disk Adapter
+     *          grounds THIS pin (PB100 Developer Note p. 28). Read from PF2,
+     *          wired by hand to castellation 48; pulled up, so 1 (normal
+     *          boot) on any board without the wire. 0 -> disk mode.
      *   bit 2  SOUND_LATCH, bit 3 OFF_HOOK - the two bits Apple's code reads
      *          (pmgr.asm 985/1466, 1263), from the real pins.
      *   bits 0,1,4,6,7  0 - analogue or unrouted inputs (PORT-AUDIT.md). */
     case 0x00EEu: {
-        uint8_t v = (uint8_t)(1u << 5);
+        uint8_t v = 0;
+        if ((DISK_MODE_PORT.IN & DISK_MODE_bm) != 0u)    v |= (1u << 5);
         if ((SOUND_LATCH_PORT.IN & SOUND_LATCH_bm) != 0u) v |= (1u << 2);
         if ((OFF_HOOK_PORT.IN & OFF_HOOK_bm) != 0u)       v |= (1u << 3);
         return v;

@@ -77,6 +77,17 @@ in place first, then removed and replaced by the stack at U22.
   Portable's calibration method and both `--hybrid` settings apply unchanged.
 - The stack **fits under the CPU board**, on the same footprint as the Portable's. The supply groups
   and unused pads checked on the bare footprint match the Portable's.
+- ⭐ **SCSI Disk Mode** *(0.1.16, with the pin-48 wire)*. The SCSI Disk Adapter grounds pin 1 of the
+  HDI-30 connector (Apple's *PowerBook 100 Developer Note*); on this logic board that pin reaches the
+  PMGR's **pin 48** through about 91 Ω. The PMGR reports it as bit 5 of its register `$EE`, which the
+  PowerBook 100's ROM reads at startup (0 = disk mode). With pin 48 wired to the AVR:
+  - nothing on the port: a normal boot to the Finder;
+  - pin 1 jumpered to pin 3 (ground) at startup, as the adapter does: the **SCSI icon with ID 1**;
+  - jumper removed: a normal boot again;
+  - and a Portable running the same firmware without the wire: unchanged.
+
+  Not yet tried: a real adapter cable, with a desktop Mac mounting the PowerBook's disk.
+- **Shut Down** from the Finder powers the machine off properly.
 
 **⚠️ Uncalibrated, it reads the battery about 0.05 V low.** Stepping a bench supply down 0.02 V a
 minute, the same machine with its original chip and then with the replacement:
@@ -94,18 +105,11 @@ the firmware deliberately **does not fast-charge**.
 
 **⬜ Not shown yet**
 - **Charging** of any kind — there was no battery for it.
-- **SCSI Disk Mode** with the HDI-30 SCSI Disk Adapter — **under review, with a likely fix.**
-  - **How the original does it:** the adapter grounds pin 1 of the HDI-30 connector (Apple's
-    *PowerBook 100 Developer Note*). On this logic board that pin reaches the PMGR's **pin 48**
-    through about 91 Ω. The PMGR reports the pin as bit 5 of its register `$EE`.
-  - **The ROM:** the PowerBook 100's ROM reads `$EE` at startup and enters disk mode when bit 5 is 0.
-    Both are shown: in the ROM's code, and on the machine, where 0 gave disk mode and 1 a normal boot.
-  - **On this board:** pin 48 is not connected to the AVR, so the replacement always reports 1. With
-    the adapter plugged in, the machine boots normally instead of entering disk mode.
-  - **Likely fix:** one wire from the interposer's pin 48 to a spare AVR pin, and a firmware change
-    to read it. Boards without the wire keep booting normally. Not yet built or tested.
-  - ⚠️ On **0.1.14 and earlier**, a PowerBook 100 *always* starts in disk mode. It shows a SCSI
-    icon, or, at lower battery voltages, a battery that alternates with a warning-triangle battery.
+- **SCSI Disk Mode end to end** — a real SCSI Disk Adapter, and a desktop Mac using the PowerBook's
+  disk. Disk mode itself is shown above. ⚠️ Boards **without** the pin-48 wire cannot enter disk mode;
+  they boot normally with the adapter plugged in. On **0.1.14 and earlier**, a PowerBook 100 *always*
+  starts in disk mode (a SCSI icon, or at lower battery voltages a battery alternating with a
+  warning-triangle battery).
 - **A closed case** with the stack fitted, and long running.
 
 **Bench notes.** The battery-bay plunger is the PowerBook 100's battery switch: with a bench supply
@@ -129,6 +133,22 @@ EEPROM out in about a day.)
 The case that is lost is narrow: PRAM that *looks* valid but holds settings that stop the Mac
 booting. The fix is then the programmer, not the battery — see "Resetting PRAM" in
 [`PROGRAMMING.md`](PROGRAMMING.md).
+
+## Fixed in 0.1.16
+
+**SCSI Disk Mode could not be entered.** `$EE` bit 5 was a constant 1. It now follows the AVR's PF2
+pin, which a hand-added wire connects to the PMGR's pin 48 (see [`BUILD.md`](BUILD.md)). PF2 has its
+pull-up on, so a board without the wire still reads 1 and boots normally.
+
+**The PowerBook 100 switched its internal disk's power off at every boot.** Its ROM reads the PMGR's
+port register `$E2` at startup and, if bit 0 is low, turns the hard-disk power off before carrying on.
+On the original that bit is an output Apple's code sets to 1 and never clears; the replacement
+reported 0. It now reports 1. (Mac OS turns the disk back on when it needs it, so this was
+invisible in use.)
+
+**The clock read through the memory command was byte-reversed** (`$25`–`$28`), and the clock's
+checksum (`$29`) read 0. Both now match the original's layout. The normal time commands were always
+correct.
 
 ## ⛔ Fixed in 0.1.15 — update if you run 0.1.14 or earlier
 
@@ -183,7 +203,7 @@ does the equivalent. **On 0.1.11 or earlier, do not let the Mac sleep during a f
   amount that varies between runs. Charging still terminates; the discrepancy is unexplained.
 - **Standby current of the original chip** has not been measured for comparison, so whether 9–11 mA
   is acceptable for a machine left unplugged for weeks is open.
-- **The PowerBook 100**: charging, calibration, SCSI Disk Mode and a closed case — see
+- **The PowerBook 100**: charging, calibration, disk mode with a real adapter, and a closed case — see
   [PowerBook 100](#powerbook-100).
 
 ## About the development machine

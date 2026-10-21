@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "handlers_stub.h"
+#include "pmgr_pram.h"
 #include "pmgr_handlers.h"
 #include "pins_native.h"
 #include "pmgr_calib.h"
@@ -143,12 +144,38 @@ int main(void)
     /* ⭐ In_Reg $EE (2.432): bit 5 = 1 is NORMAL BOOT on the PowerBook 100 (0 = target disk mode). It read 0 when
      * unmapped and the PB100 booted into SCSI Disk Mode. Bits 2/3 follow SOUND_LATCH / OFF_HOOK. */
     printf("\nIn_Reg $EE\n");
+    /* ⭐ 2.434: bit 5 is M50753 pin 48 (IN5), which the SCSI Disk Adapter grounds through HDI-30 pin 1. Our board reads
+     * it on PF2 (a hand wire to castellation 48) with the internal pull-up, so a board WITHOUT the wire reads 1. */
+    PORTF.DIR = 0xFFu; PORTF.PIN2CTRL = 0u;     /* start as if PF2 were an output */
+    pmgr_ports_init(true);
+    ok((PORTF.DIR & 0x04u) == 0u, "PF2 (disk mode) is made an INPUT by InitPorts");
+    ok((PORTF.DIR & 0xFBu) == 0xFBu, "InitPorts leaves the other PORTF directions alone (DBG pads)");
+    ok((PORTF.PIN2CTRL & PORT_PULLUPEN_bm) != 0u, "PF2 has its pull-up enabled by InitPorts");
     PORTC.IN = 0;
-    ok((pmgr_mem_read(0x00EEu) & 0x20u) != 0u, "$EE bit 5 = 1: NORMAL boot, not target disk mode  [2.432]");
+    PORTF.IN = 0x04u;                  /* pulled up: no wire, or no adapter */
+    ok((pmgr_mem_read(0x00EEu) & 0x20u) != 0u, "$EE bit 5 = 1 with PF2 high: NORMAL boot  [2.432]");
+    PORTF.IN = 0x00u;                  /* the adapter grounds HDI-30 pin 1 */
+    ok((pmgr_mem_read(0x00EEu) & 0x20u) == 0u, "$EE bit 5 = 0 with PF2 low: SCSI DISK MODE  [2.434]");
+    ok((pmgr_mem_read(0x00EEu) & 0xD3u) == 0u, "$EE bits 0,1,4,6,7 stay 0");
+    PORTF.IN = 0x04u;
     ok((pmgr_mem_read(0x00EEu) & 0x0Cu) == 0u, "$EE bits 2/3 clear with SOUND_LATCH / OFF_HOOK low");
     PORTC.IN = (uint8_t)(SOUND_LATCH_bm | OFF_HOOK_bm);
     ok((pmgr_mem_read(0x00EEu) & 0x0Cu) == 0x0Cu, "$EE bits 2/3 follow SOUND_LATCH / OFF_HOOK high");
     PORTC.IN = 0;
+
+    /* ⭐ 2.436: $E2 bit 0 is P10 (pin 36), set to 1 by Apple's InitPorts and never cleared. The PowerBook 100 ROM
+     * ($39884) turns the hard-disk power OFF at boot when it reads 0 there. */
+    ok((pmgr_mem_read(0x00E2u) & 0x01u) != 0u, "$E2 bit 0 = 1: P10 as Apple's InitPorts leaves it  [2.436]");
+
+    /* ⭐ The clock through $E8: timeD..timeA at $25..$28, MSB at the LOWEST address (binary: `C5 25 cmp timeD`),
+     * and the `Time` checksum at $29. These read REVERSED and 0 respectively until 2026-10-20. */
+    pmgr_time_set(0x12345678u);
+    ok(pmgr_mem_read(0x25u) == 0x12u && pmgr_mem_read(0x26u) == 0x34u &&
+       pmgr_mem_read(0x27u) == 0x56u && pmgr_mem_read(0x28u) == 0x78u, "$25-$28: time MSB first (timeD..timeA)");
+    ok(pmgr_mem_read(0x29u) == (uint8_t)(0x12u + 0x34u + 0x56u + 0x78u), "$29: the Time checksum (CombineTime)");
+    pmgr_time_tick();
+    ok(pmgr_mem_read(0x28u) == 0x79u && pmgr_mem_read(0x29u) == (uint8_t)(0x12u + 0x34u + 0x56u + 0x79u),
+       "$28/$29 follow a tick");
 
     /* Additional original-register reads through the same $E8 memory map. */
     ok(pmgr_mem_read(0xE1u) == 0xFFu, "$E1: P0 direction from InitPorts");

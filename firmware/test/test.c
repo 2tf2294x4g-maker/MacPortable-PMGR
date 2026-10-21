@@ -45,8 +45,10 @@ int main(void){
     /* CombineTime */
     pmgr_time_set(0xAABBCCDDu);
     CHECK(pmgr_time_combine()==(uint8_t)(0xAA+0xBB+0xCC+0xDD), "CombineTime = sum of 4 bytes");
+    CHECK(pmgr_time_sum_get()==pmgr_time_combine(), "the STORED Time byte ($29) is refreshed by a time write");
     pmgr_time_set(0xFFFFFFFFu); pmgr_time_tick();
     CHECK(pmgr_time_get()==0, "time wraps 32-bit");
+    CHECK(pmgr_time_sum_get()==0, "the stored Time byte follows the tick");
 
     /* ---- time must SURVIVE a reset (pmgr.asm 157-159) --------------------
      * The original validates the time against its checksum at startup and
