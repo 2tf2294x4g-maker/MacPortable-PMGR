@@ -1,4 +1,8 @@
-# Interposer
+# Interposer — rev A
+
+> **Rev A is the built and tested interposer.** [Rev B](../interposer-revb/README.md) adds the
+> PowerBook 100's SCSI Disk Mode line (castellation 48 → DF12 position 50), so no hand-added wire is
+> needed; it is designed but not yet fabricated. Both work in both machines: see the table on the rev B page.
 
 Solders onto the M50753's footprint on the logic board by 60 castellated half-holes, and carries the
 DF12 header (`J1`) the MCU board plugs into. It remaps the original chip's pins to the connector —

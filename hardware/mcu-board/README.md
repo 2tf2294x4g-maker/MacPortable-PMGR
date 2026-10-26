@@ -1,4 +1,11 @@
-# MCU board
+# MCU board — rev A
+
+> **Rev A is the built and tested MCU board.** [Rev B](../mcu-revb/README.md) adds the SCSI Disk Mode
+> path (DF12 position 50 → PF2), edge pads for in-machine programming, and sits 5 mm toward `J2` so the
+> Portable's case closes over it; it is designed but not yet fabricated. See the table on the rev B page.
+>
+> ⛔ **Rev A does not fit the Portable with the case closed** (the case catches the edge opposite `J2`).
+> It fits and works in the PowerBook 100. For a Portable, build rev B.
 
 Carries the AVR128DB64, its decoupling, a clamp on the battery-sense input, the DF12 socket that
 mates with the interposer (`J1`, bottom), and a 2×3 UPDI programming header (`J2`).

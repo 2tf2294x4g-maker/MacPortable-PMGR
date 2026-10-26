@@ -1,4 +1,7 @@
-# J21 breakout (development only)
+# J21 breakout — bench tool (development only)
+
+> 🧪 **Bench tool, built and used on the Portable.** Too tall for the PowerBook 100 (its CPU card leaves
+> about 10.4 mm above U22): use the [PowerBook 100 breakout](../breakout-pb100/README.md) there.
 
 A DF12 pass-through that sits between the interposer and the MCU board and brings every PMGR signal
 out to **two 1×25 2.54 mm headers labelled with the Portable's J21 pin numbers** — ready for Dupont

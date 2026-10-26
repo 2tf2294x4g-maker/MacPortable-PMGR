@@ -16,7 +16,11 @@ Read the safety notes in the top-level [`README`](../README.md) first.
 > 100 — see [`VERIFIED.md`](VERIFIED.md#powerbook-100) and the probe points in
 > [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md#powerbook-100).
 >
-> **SCSI Disk Mode needs one extra wire** (0.1.16 or later). The disk-mode signal arrives on the
+> **Rev B boards** ([interposer](../hardware/interposer-revb/README.md), [MCU board](../hardware/mcu-revb/README.md);
+> designed, not yet fabricated) carry this line on the boards, so **no wire** is needed. The wire below is for
+> rev A boards.
+>
+> **SCSI Disk Mode needs one extra wire** on rev A boards (0.1.16 or later). The disk-mode signal arrives on the
 > M50753's **pin 48**, which these boards don't connect. Route it through the DF12's spare
 > **position 50** (unconnected on both boards), so the stack still comes apart:
 > 1. **Interposer:** fine magnet wire (about 0.1 mm) from **castellation 48** to the foot of the DF12

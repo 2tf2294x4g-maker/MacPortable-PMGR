@@ -124,9 +124,13 @@ docs/ASSEMBLY.md          the detailed, bench-tested assembly procedure
 docs/PINOUT.md            M50753 pin -> interposer -> AVR mapping
 docs/MCU-BOARD-SCHEMATIC.md
 docs/BOM.md, ORDER-LIST.md
-hardware/mcu-board/       KiCad board + Gerbers
-hardware/interposer-v2/   KiCad board + Gerbers
-hardware/breakout-j21/    KiCad board + Gerbers + assembly files
+hardware/mcu-board/       MCU board rev A (built and tested): KiCad board + Gerbers
+hardware/interposer-v2/   interposer rev A (built and tested): KiCad board + Gerbers
+hardware/mcu-revb/        MCU board rev B: disk-mode path, edge pads, fits the Portable's closed case (not yet fabricated)
+hardware/interposer-revb/ interposer rev B: disk-mode line built in (not yet fabricated)
+hardware/breakout-j21/    bench tool: J21 breakout, built and used on the Portable
+hardware/breakout-pb100/  bench tool: PowerBook 100 breakout, should work in both (not yet fabricated)
+hardware/carrier-m50753/  bench tool: carrier for an ORIGINAL M50753 on the interposer (not yet fabricated)
 firmware/                 AVR firmware, host-side unit tests, fuse policy
 tools/                    flashing and calibration scripts
 ```
