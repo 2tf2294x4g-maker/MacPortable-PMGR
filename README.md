@@ -42,9 +42,15 @@ behaviour toward the Mac.
 - ⭐ **PowerBook 100** (one machine, System 7.5.3): it boots to the Finder, the **brightness dial**
   works, it sleeps and wakes, and Mac OS shows its whole low-battery sequence and then sleeps the
   machine. The same boards and the same firmware fit both machines; no PowerBook-specific build is
-  needed. ⭐ Since 0.1.16, **SCSI Disk Mode works** with one extra wire on the boards (below).
+  needed. ⭐ Since 0.1.16, **SCSI Disk Mode works** with one extra wire on the boards (below); a desktop Mac has mounted the PowerBook's disk through a real adapter.
   **Not yet:** charging (no battery for it yet, so it is uncalibrated and ran on a bench supply), and
   a closed case. See [`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100).
+
+**0.1.17 fixes the clock running fast while the Mac is asleep or shut down** (about 3 %, some 43
+minutes a day). The fallback that covers a missing 60 Hz signal could count a pulse twice; on the
+Portable the clock now holds to the minute over 36 hours shut down. Nothing else changes.
+⭐ SCSI Disk Mode is now also verified end to end: a Mac SE/30 mounts the PowerBook 100's disk through
+a real adapter ([`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100)).
 
 **0.1.16 makes SCSI Disk Mode work on the PowerBook 100**, and fixes two more registers the Mac can read:
 - **Disk mode:** the SCSI Disk Adapter grounds a pin on the HDI-30 port, which reaches the PMGR's

@@ -86,7 +86,15 @@ in place first, then removed and replaced by the stack at U22.
   - jumper removed: a normal boot again;
   - and a Portable running the same firmware without the wire: unchanged.
 
-  Not yet tried: a real adapter cable, with a desktop Mac mounting the PowerBook's disk.
+  ✅ **End to end** *(2026-10-31)*: through a real HDI-30 SCSI/DOCK adapter and cable, a Mac SE/30
+  **mounts the PowerBook's disk** (a BlueSCSI). Two things to know:
+  - **SCSI ID.** In disk mode the PowerBook's internal drive sits directly on the external bus. A
+    **BlueSCSI answers at its own ID** (from its image file's name), not the ID in the PowerBook
+    control panel, so give its image an ID the desktop Mac does not already use.
+  - ⚠️ **An original hard drive** takes its disk-mode ID from three lines the ROM sets; this
+    replacement cannot set two of them yet (one is not wired on the boards, the other is not yet
+    handled by the firmware). An original drive therefore appears at ID 0 (or 4) whatever the
+    control panel says. Seen: ID 0. Make sure nothing else on the desktop Mac's bus uses that ID.
 - **Shut Down** from the Finder powers the machine off properly.
 
 **⚠️ Uncalibrated, it reads the battery about 0.05 V low.** Stepping a bench supply down 0.02 V a
@@ -133,6 +141,16 @@ EEPROM out in about a day.)
 The case that is lost is narrow: PRAM that *looks* valid but holds settings that stop the Mac
 booting. The fix is then the programmer, not the battery — see "Resetting PRAM" in
 [`PROGRAMMING.md`](PROGRAMMING.md).
+
+## Fixed in 0.1.17
+
+**The Mac's clock gained about 3 % while asleep or shut down** (about 43 minutes a day). While the
+machine is parked, the PMGR counts the 60 Hz signal and has a fallback timer for when that signal is
+missing. The fallback could fire a moment before a real pulse arrived, and the pulse was then counted
+too. The fallback now waits for two full timer periods of silence. On the Portable: no measurable
+drift over 24 and 36 hours shut down (it was +2.98 %). A unit test drives the real routine against a
+simulated 60 Hz signal and timer; the old rule fails it. Running (awake) timekeeping was never
+affected.
 
 ## Fixed in 0.1.16
 

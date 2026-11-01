@@ -2216,8 +2216,15 @@ void pmgr_tick_catchup(void)
  * Replaces the 1 us busy-poll of SIXTYHZ with a sleep until its next falling
  * edge. PC2 is a FULLY ASYNCHRONOUS pin, so its edge interrupt wakes the part
  * from POWER-DOWN. The RTC PIT (64 Hz, 32 kHz oscillator, runs in power-down)
- * is the fallback: two PIT periods with no edge count as one tick, as the
- * polled path's 25 ms + 17 ms fallback did.
+ * is the fallback: at least two PIT periods with no edge count as one tick,
+ * as the polled path's 25 ms + 17 ms fallback did.
+ *
+ * ⛔ PERIODS ARE NOT INTERRUPTS (MEASUREMENTS 2.445). The PIT runs free and its
+ * flag is cleared at entry, so the FIRST interrupt can come at once. Breaking on
+ * the 2nd interrupt therefore allowed a fallback after only ~15.6 ms - inside
+ * one 16.7 ms SIXTYHZ period - and the real edge ~1 ms later was counted too:
+ * the Mac's clock GAINED ~3 % while parked (+43 min in 24 h on #1). The 3rd
+ * interrupt guarantees >= 2 full periods (31.25 ms) of silence.
  *
  * Only while s_asleep (rails off). Called with interrupts DISABLED (pmgr_sleep
  * :441) and returns with them disabled; they are enabled only across the sleep
@@ -2231,13 +2238,16 @@ void pmgr_tick_catchup(void)
  * returned bool and the caller ignored it, so the POLLED timeout (~25 ms) lost
  * the 17 ms it used to add - a no-clock tick every ~25 ms instead of ~42 ms.
  *   PARK_EDGE           a SIXTYHZ edge: run the tick now
- *   PARK_PIT_FALLBACK   no edge for two PIT periods (~31 ms): run the tick now.
+ *   PARK_PIT_FALLBACK   no edge for >= two PIT periods (31.25-46.9 ms): run the tick now.
  *                       Deliberately ~31 ms, not the polled path's 25 + 17 ms,
  *                       which was a search timeout plus an approximation, not a
  *                       specified period; bench-only (no 60 Hz source)
  *   PARK_POLL_TIMEOUT   no PIT, no edge in ~25 ms: the caller adds the same
  *                       17 ms as before, so this path is unchanged */
 typedef enum { PARK_EDGE, PARK_PIT_FALLBACK, PARK_POLL_TIMEOUT } park_wake_t;
+
+/* N interrupts span at least N-1 whole periods; see the ⛔ above. */
+#define PARK_FALLBACK_PITS  3u
 
 static park_wake_t park_sleep_until_edge(void)
 {
@@ -2269,7 +2279,7 @@ static park_wake_t park_sleep_until_edge(void)
         if (g_park_edge) { edge = true; break; }
         if (g_park_pit) {
             g_park_pit = false;
-            if (++pits >= 2u) break;    /* no SIXTYHZ for two PIT periods */
+            if (++pits >= PARK_FALLBACK_PITS) break;   /* >= 2 full PIT periods of silence */
         }
     }
     g_parked = false;

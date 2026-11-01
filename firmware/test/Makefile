@@ -8,7 +8,7 @@
 #   3A 02 46 01  ->  3A 01 00     (xPRAM read, location $46)
 # recorded in MEASUREMENTS.md 2.9.
 
-all: run run_save run_latch run_adb_latch run_deadline run_adc run_charging run_calib run_calib_cross run_report run_pwm
+all: run run_save run_latch run_adb_latch run_deadline run_adc run_charging run_calib run_calib_cross run_report run_pwm run_park
 
 # ⭐ pmgr_pram.c now compiles UNMODIFIED natively: off-AVR it takes its EEPROM
 # primitives from include/pmgr_ee_hal.h, implemented by eesim.c (a simulated
@@ -87,7 +87,7 @@ run_charging: tc
 	./tc
 
 clean:
-	rm -f t ts tl tal td ta tc tpwm pwm_native.c adc_native.c handlers_native.c pins_native.h
+	rm -f t ts tl tal td ta tc tpwm tpark pwm_native.c adc_native.c handlers_native.c pins_native.h
 
 # N1 - the calibration record, its CRC and THE GATE (MEASUREMENTS 2.349).
 # ⛔ Links handlers_native.c deliberately: N1.9's claim is about the CHARGING
@@ -121,3 +121,10 @@ tpwm: test_pwm.c pwm_native.c pwmstub.h ../include/pmgr_pwm.h
 
 run_pwm: tpwm
 	./tpwm
+
+# 2.445: the park's PIT fallback must never fire inside a live SIXTYHZ period (it did on the 2nd interrupt: the clock gained ~3 %)
+tpark: test_park.c handlers_stub.c handlers_native.c ../src/pmgr_calib.c eesim.c pins_native.h handlers_stub.h mockinc/avr/sleep.h Makefile
+	cc -std=gnu11 -O2 -Wall -Wextra -Werror $(HDEFS) -DMOCK_SLEEP_HOOK -DF_CPU=24000000UL -I../include -I. -Imockinc -o tpark test_park.c handlers_stub.c ../src/pmgr_calib.c eesim.c
+
+run_park: tpark
+	./tpark
