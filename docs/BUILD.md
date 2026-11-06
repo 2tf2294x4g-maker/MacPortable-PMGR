@@ -35,6 +35,18 @@ Read the safety notes in the top-level [`README`](../README.md) first.
 > pin 1 to leg 46 about **91 Ω**. Keep solder on the lead feet, out of the connector's contacts.
 > Without the wire everything else works; the machine just can't enter disk mode. On a Portable the
 > wire is not needed.
+>
+> **Optional, PowerBook 100 with an original hard drive (0.1.18 or later): a second wire for the disk-mode ID.**
+> In disk mode the ROM sets the internal drive's SCSI ID on three lines. The firmware drives two of them;
+> the third (ID bit 0) leaves the M50753 on **pin 36**, which no board revision connects. Without this wire,
+> an original drive lands one ID lower on odd settings (3 gives ID 2). A BlueSCSI ignores all three lines,
+> so it does not need it. No DF12 position is free, so this wire runs straight between the boards:
+> 1. Fine magnet wire from the interposer's **castellation 36** to the AVR's **pin 43 (PE7)**: the sixth
+>    leg from the corner on the side carrying legs 33–48, between leg 42 (`MODEM_AB`) and leg 44.
+> 2. Before power: castellation 36 to leg 43 near **0 Ω**; leg 43 to legs 42 and 44 **open**; castellation
+>    36 to castellations 35 and 37 **open**; leg 43 to ground **open**.
+>
+> ⚠️ The stack can no longer be pulled apart without unsoldering this wire, so leave slack.
 
 ## 0. Skills and tools
 

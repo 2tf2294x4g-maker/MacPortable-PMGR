@@ -24,6 +24,14 @@
 #define DISK_MODE_PORT   PORTF
 #define DISK_MODE_bm     (1U << 2)                   /* PF2 */
 #define DISK_MODE_CTRL   PIN2CTRL
+/* P10 (pin 36) = the PowerBook 100's drive-ID bit 0, /ID0 through U13 (2.450). NOT on the board's net list: an optional
+ * hand wire from castellation 36 to TQFP 43, the same pattern as DISK_MODE before rev B. Low = driven; high = released
+ * WITH THE PULL-UP ON. ⛔ Released alone it floated low on the PB100 (setting 2 gave ID 3, J8-1 at 0 V, 2.450): nothing
+ * on the board holds U13's input high, so the original cannot be plain open drain here. A pull-up rather than driving
+ * high keeps the current small if U13 is ever unpowered while the AVR is not. The input buffer stays off. */
+#define P10_ID0_PORT     PORTE
+#define P10_ID0_bm       (1U << 7)                   /* PE7 */
+#define P10_ID0_CTRL     PIN7CTRL
 
 /* Apple's %10011111 - the "everything off" power byte. Written in TWO places
  * and it must be the same value in both, which is why it is defined once:
@@ -56,6 +64,10 @@ static uint8_t thr_dead(void) { return hybrid_recreation() ? PMGR_RECREATION_DEA
 static uint8_t thr_stay(void) { return (uint8_t)((thr_low() >> 1) + (thr_dead() >> 1)); }
 static uint8_t s_ref5v_level;   /* $1F */
 static uint8_t s_sec_divider;
+/* Port_P1 bit 0 (P10, pin 36) - the value read back through $E8. The pin itself is P10_ID0, if the wire is fitted; it is an
+ * open-drain output, so reading the pin would not tell a released 1 from a held-down line. Apple's InitPorts sets it to 1
+ * (pmgr.asm 177); an $E0 write to $E2 stores it (2.448, the PowerBook 100's disk-mode SCSI ID bit 0). */
+static uint8_t s_p10_latch = 1u;
 #ifdef PMGR_ADB_HOST_SERVICE
 static bool    s_1s_deferred;       /* fix A: a 60th tick's 1 Hz work waiting for a latched transaction */
 #endif
@@ -219,6 +231,10 @@ static void ports_init_p0(uint8_t p0)
     AKD_PORT.DIRCLR = (uint8_t)(AKD_bm | CHRG_ON_N_bm | RING_DETECT_bm);
     AKD_PORT.OUTCLR = (uint8_t)(STOP_CLK_bm | KBD_RST_N_bm | HICHG_bm); /* all 0 */
     AKD_PORT.OUTSET = MODEM_AB_bm;                                      /* = 1  */
+    s_p10_latch = 1u;                               /* P10 = 1: Port_P1 = %11000001 (:177) */
+    P10_ID0_PORT.OUTCLR     = P10_ID0_bm;
+    P10_ID0_PORT.DIRCLR     = P10_ID0_bm;           /* released; our pull-up holds it high (2.450) */
+    P10_ID0_PORT.P10_ID0_CTRL = (uint8_t)(PORT_PULLUPEN_bm | PORT_ISC_INPUT_DISABLE_gc);
     AKD_PORT.DIRSET = (uint8_t)(STOP_CLK_bm | KBD_RST_N_bm |
                                 HICHG_bm | MODEM_AB_bm);
     /* KBD_RST* starts LOW = keyboard controller held in reset. */
@@ -1653,7 +1669,7 @@ uint8_t pmgr_mem_read(uint16_t addr)
          * 2.436): at $39884 it reads $E2 and, if bit 0 or bit 7 is low, sends
          * $10 $04 (hard-disk power OFF) and writes $E2 |= $81 - on every boot
          * with our board, where the original skips it. */
-        uint8_t v = (uint8_t)(1u << 0);
+        uint8_t v = (uint8_t)(s_p10_latch & 1u);    /* 1 unless the host wrote 0 (2.448) */
         if (!PIN_IS_LOW(AKD_PORT,         AKD_bm))         v |= (1u << 1);
         if ((STOP_CLK_PORT.IN & STOP_CLK_bm) != 0u)        v |= (1u << 2);
         if (!PIN_IS_LOW(CHRG_ON_N_PORT,   CHRG_ON_N_bm))   v |= (1u << 3);
@@ -1772,6 +1788,24 @@ void pmgr_mem_write(uint16_t addr, uint8_t value)
     case 0x0024u: s_sec_divider   = value; return;
     case 0x002Eu: pmgr_contrast_set(value); return;
     case 0x00E0u: p0_write(value); return;
+    case 0x00E2u:
+        /* ⭐ Port_P1 (2.448). On the M50753 `$E0` is `sta ($1B),Y` (pmgr.asm .LAB_F200): a store to the port itself.
+         * The PowerBook 100 ROM uses it in SCSI Disk Mode ($398C4) to set the internal drive's SCSI ID: bit 7 (P17) =
+         * ID bit 1, bit 0 (P10) = ID bit 0, pulled LOW to set; at every normal boot ($39884) it writes both back high.
+         * The Portable ROM never writes $E2 (byte scan, 2.448).
+         *   bit 7  MODEM_A/B (P17): driven, as the original's store does.
+         *   bit 0  NC (P10): open drain on PE7, which only reaches pin 36 through the optional wire, and latched, so a
+         *          later $E8 read returns what was written with or without the wire (2.450).
+         * ⛔ DELIBERATELY NOT the rest of the port. STOP_CLK, KBD_RST* and HICHG are outputs too, but a host write to
+         * HICHG would bypass the charging/ADC interlock (CHARGING-ADC-INTERLOCK.md), and the only known writer is a
+         * read-modify-write that hands those bits back unchanged. Inputs (AKD, CHRG_ON*, RING_DETECT) cannot be written
+         * on the original either. */
+        if ((value & 0x80u) != 0u) MODEM_AB_PORT.OUTSET = MODEM_AB_bm;
+        else                       MODEM_AB_PORT.OUTCLR = MODEM_AB_bm;
+        s_p10_latch = (uint8_t)(value & 1u);
+        if (s_p10_latch != 0u) P10_ID0_PORT.DIRCLR = P10_ID0_bm;
+        else                   P10_ID0_PORT.DIRSET = P10_ID0_bm;
+        return;
     default:
         if (addr >= 0x002Fu && addr <= 0x00AEu) {
             pmgr_pram_write((uint8_t)(addr - 0x002Fu), value);

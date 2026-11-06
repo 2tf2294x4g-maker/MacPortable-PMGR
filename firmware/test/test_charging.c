@@ -167,6 +167,32 @@ int main(void)
      * ($39884) turns the hard-disk power OFF at boot when it reads 0 there. */
     ok((pmgr_mem_read(0x00E2u) & 0x01u) != 0u, "$E2 bit 0 = 1: P10 as Apple's InitPorts leaves it  [2.436]");
 
+    /* ⭐ 2.448: an $E0 write to $E2 - the PowerBook 100 ROM's disk-mode SCSI ID ($398C4). Bit 7 drives MODEM_A/B (P17,
+     * ID bit 1), bit 0 is latched and open drain on PE7 (P10, ID bit 0, optional wire, 2.450); STOP_CLK, KBD_RST* and
+     * HICHG must NOT follow the host. */
+    {
+        uint8_t keep = (uint8_t)(PORTE.OUT & (STOP_CLK_bm | KBD_RST_N_bm | HICHG_bm));
+        pmgr_mem_write(0x00E2u, 0x00u);             /* ID 3 asks for bits 7 and 0 low; also try every other bit low */
+        ok((PORTE.OUT & MODEM_AB_bm) == 0u, "$E0 to $E2 bit 7 = 0 drives MODEM_A/B (P17) LOW  [2.448]");
+        ok((pmgr_mem_read(0x00E2u) & 0x01u) == 0u, "$E2 bit 0 reads back the written 0 (P10 latch)  [2.448]");
+        ok((PORTE.DIR & (1U << 7)) != 0u && (PORTE.OUT & (1U << 7)) == 0u, "$E2 bit 0 = 0 pulls PE7 (P10) LOW  [2.450]");
+        ok((uint8_t)(PORTE.OUT & (STOP_CLK_bm | KBD_RST_N_bm | HICHG_bm)) == keep,
+           "$E0 to $E2 leaves STOP_CLK, KBD_RST* and HICHG alone  [2.448]");
+        pmgr_mem_write(0x00E2u, 0xFFu);             /* the normal-boot write-back, $E2 |= $81 */
+        ok((PORTE.OUT & MODEM_AB_bm) != 0u, "$E0 to $E2 bit 7 = 1 drives MODEM_A/B HIGH again");
+        ok((pmgr_mem_read(0x00E2u) & 0x01u) != 0u, "$E2 bit 0 reads 1 again");
+        ok((PORTE.DIR & (1U << 7)) == 0u, "$E2 bit 0 = 1 RELEASES PE7 to its pull-up, never driven high  [2.450]");
+        ok((uint8_t)(PORTE.OUT & (STOP_CLK_bm | KBD_RST_N_bm | HICHG_bm)) == keep,
+           "... and still leaves STOP_CLK, KBD_RST* and HICHG alone");
+        pmgr_mem_write(0x00E2u, 0x00u);
+        pmgr_ports_init(true);
+        ok((pmgr_mem_read(0x00E2u) & 0x01u) != 0u && (PORTE.OUT & MODEM_AB_bm) != 0u,
+           "InitPorts restores P10 = 1 and P17 = 1 (Port_P1 = %11000001)");
+        ok((PORTE.DIR & (1U << 7)) == 0u && (PORTE.OUT & (1U << 7)) == 0u
+           && PORTE.PIN7CTRL == (uint8_t)(PORT_PULLUPEN_bm | PORT_ISC_INPUT_DISABLE_gc),
+           "InitPorts leaves PE7 released WITH the pull-up (it floated low without), input buffer off  [2.450]");
+    }
+
     /* ⭐ The clock through $E8: timeD..timeA at $25..$28, MSB at the LOWEST address (binary: `C5 25 cmp timeD`),
      * and the `Time` checksum at $29. These read REVERSED and 0 respectively until 2026-10-20. */
     pmgr_time_set(0x12345678u);

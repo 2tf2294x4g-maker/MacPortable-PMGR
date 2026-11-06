@@ -91,10 +91,20 @@ in place first, then removed and replaced by the stack at U22.
   - **SCSI ID.** In disk mode the PowerBook's internal drive sits directly on the external bus. A
     **BlueSCSI answers at its own ID** (from its image file's name), not the ID in the PowerBook
     control panel, so give its image an ID the desktop Mac does not already use.
-  - ⚠️ **An original hard drive** takes its disk-mode ID from three lines the ROM sets; this
-    replacement cannot set two of them yet (one is not wired on the boards, the other is not yet
-    handled by the firmware). An original drive therefore appears at ID 0 (or 4) whatever the
-    control panel says. Seen: ID 0. Make sure nothing else on the desktop Mac's bus uses that ID.
+  - **An original hard drive** takes its disk-mode ID from three lines the ROM sets, carried by the
+    internal ribbon to a separate 8-pin section of the drive's connector (a 40-pin BlueSCSI never
+    receives them). *(0.1.18)* The firmware sets two of them; the third needs the optional pin-36 wire
+    ([`BUILD.md`](BUILD.md)). With an original Conner CP2025, seen in SCSIProbe:
+
+    | control panel | 1 | 2 | 3 | 4 | 5 | 6 |
+    |---|---|---|---|---|---|---|
+    | with the pin-36 wire | **1** | **2** | **3** | 4 † | 5 † | **6** |
+    | without it (expected) | 0 | 2 | 2 | 4 | 4 | 6 |
+
+    † seen on earlier test builds of the same change, not yet on the released image. Before 0.1.18 an original drive
+    reached only IDs 0 and 4. ⚠️ **Seat the ribbon fully on the drive:** with its 8-pin section poorly
+    mated, the drive still runs but answers at the wrong ID. Make sure nothing else on the desktop
+    Mac's bus uses the drive's ID.
 - **Shut Down** from the Finder powers the machine off properly.
 
 **⚠️ Uncalibrated, it reads the battery about 0.05 V low.** Stepping a bench supply down 0.02 V a
@@ -141,6 +151,16 @@ EEPROM out in about a day.)
 The case that is lost is narrow: PRAM that *looks* valid but holds settings that stop the Mac
 booting. The fix is then the programmer, not the battery — see "Resetting PRAM" in
 [`PROGRAMMING.md`](PROGRAMMING.md).
+
+## Fixed in 0.1.18
+
+**An original hard drive could not follow the disk-mode ID.** The PowerBook 100's ROM sets ID bits 1
+and 0 by writing the PMGR's port register `$E2`, which the replacement ignored. Bit 1 now drives the
+pin that carries it (already on the boards); bit 0 drives the AVR's PE7, for the optional pin-36 wire,
+held high by the AVR's pull-up when not set (without that pull-up the line floated low). The
+charging and keyboard bits in the same register stay out of the host's reach. Verified on the
+PowerBook 100 with its original drive, and on the Portable (where that bit 1 pin is the internal
+modem's select line: the modem still answers).
 
 ## Fixed in 0.1.17
 

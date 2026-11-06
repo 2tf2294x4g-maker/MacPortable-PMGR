@@ -46,6 +46,11 @@ behaviour toward the Mac.
   **Not yet:** charging (no battery for it yet, so it is uncalibrated and ran on a bench supply), and
   a closed case. See [`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100).
 
+**0.1.18 lets an original hard drive follow the PowerBook 100's disk-mode ID.** The ROM sets the
+drive's SCSI ID on three lines; the firmware now drives the two that go through the PMGR, one of them
+through an optional wire ([`docs/BUILD.md`](docs/BUILD.md)). With it, an original drive answers at the
+ID set in the control panel. A BlueSCSI is unaffected: it takes its ID from its image's file name.
+
 **0.1.17 fixes the clock running fast while the Mac is asleep or shut down** (about 3 %, some 43
 minutes a day). The fallback that covers a missing 60 Hz signal could count a pulse twice; on the
 Portable the clock now holds to the minute over 36 hours shut down. Nothing else changes.

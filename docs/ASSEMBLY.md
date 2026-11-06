@@ -424,8 +424,8 @@ they land.
 is easy now and awkward once the stack is in a Mac.
 
 ```
-  firmware   firmware/pmgr.hex     text 11465 bytes, avr-gcc 14.3.0
-             ⭐ byte-identical to baselines/2026-10-31-park-tick/
+  firmware   firmware/pmgr.hex     text 11557 bytes, avr-gcc 14.3.0
+             ⭐ byte-identical to baselines/2026-11-05-scsi-drive-id/
 ```
 
 ### ⛔⛔ BEFORE YOU WIRE ANYTHING — `J2` PIN 2 IS +5V, AND IT REACHES THE MACHINE
