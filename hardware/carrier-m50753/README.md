@@ -1,12 +1,14 @@
 # Original-chip carrier — bench tool
 
-> 🧪 **Bench tool, not part of the replacement.** **Designed and checked, not yet fabricated;** it should
-> work in both machines.
+> 🧪 **Bench tool, not part of the replacement.** **Designed and checked; the boards are fabricated but
+> not yet built or tested;** it should work in both machines.
 
 Holds an **original M50753** power manager on a small board that plugs onto the interposer's DF12 header
 **in place of the MCU board**. An original chip can then move between machines without reflow, and be
-compared with the replacement on the same machine. It needs an interposer (rev B for PowerBook 100 SCSI
-Disk Mode, as with the MCU board).
+compared with the replacement on the same machine. It needs an interposer. For PowerBook 100 SCSI Disk
+Mode the interposer must carry the pin-48 line on DF12 position 50, as with the MCU board: a rev B
+interposer builds it in (designed, not manufactured), and a rev A interposer gets it from the hand wire in
+[`BUILD.md`](../../docs/BUILD.md).
 
 | | |
 |---|---|

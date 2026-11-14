@@ -2,7 +2,7 @@
 
 > 🧪 **Bench tool, not part of the replacement.** It sits between the interposer and the MCU board with
 > the case open, brings every PMGR signal out for a logic analyser, and comes out before the machine is
-> closed. **Designed and checked, not yet fabricated:** it should work in both machines; the
+> closed. **Designed and checked; the boards are fabricated but not yet built or tested:** it should work in both machines; the
 > [J21 breakout](../breakout-j21/README.md) is the one that has been built and used (on the Portable).
 
 The [J21 breakout](../breakout-j21/README.md) stacks the MCU board directly above the interposer, about

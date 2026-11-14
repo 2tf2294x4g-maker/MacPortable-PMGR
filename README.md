@@ -51,8 +51,8 @@ interposer is designed but has not been manufactured.
   has not been tried.**
 - ⭐ **PowerBook 100** (one machine, System 7.5.3): it boots to the Finder, the **brightness dial**
   works, it sleeps and wakes, and Mac OS shows its whole low-battery sequence and then sleeps the
-  machine. The same boards and the same firmware fit both machines; no PowerBook-specific build is
-  needed. ⭐ Since 0.1.16, **SCSI Disk Mode works** with one extra wire on the boards (below); a desktop Mac has mounted the PowerBook's disk through a real adapter.
+  machine. The same firmware and the same interposer run both machines (use the rev B MCU board in a
+  Portable, since rev A does not close its case); no PowerBook-specific build is needed. ⭐ Since 0.1.16, **SCSI Disk Mode works** with one extra wire on the boards (below); a desktop Mac has mounted the PowerBook's disk through a real adapter.
   **Not yet:** charging (no battery for it yet, so it is uncalibrated and ran on a bench supply), and
   a closed case. See [`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100).
 - ⭐ **Rev B MCU board** (built; runs in the Portable and the PowerBook 100, on a rev A interposer). In the
@@ -155,8 +155,8 @@ hardware/interposer-v2/   interposer rev A (built and tested): KiCad board + Ger
 hardware/mcu-revb/        MCU board rev B: disk-mode path, edge pads, fits both machines (built; runs in both on a rev A interposer; its disk-mode path is untested)
 hardware/interposer-revb/ interposer rev B: disk-mode line built in (designed and checked, not manufactured)
 hardware/breakout-j21/    bench tool: J21 breakout, built and used on the Portable
-hardware/breakout-pb100/  bench tool: PowerBook 100 breakout, should work in both (not yet fabricated)
-hardware/carrier-m50753/  bench tool: carrier for an ORIGINAL M50753 on the interposer (not yet fabricated)
+hardware/breakout-pb100/  bench tool: PowerBook 100 breakout, should work in both (boards fabricated, not yet built or tested)
+hardware/carrier-m50753/  bench tool: carrier for an ORIGINAL M50753 on the interposer (boards fabricated, not yet built or tested)
 firmware/                 AVR firmware, host-side unit tests, fuse policy
 tools/                    flashing and calibration scripts
 ```
