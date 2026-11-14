@@ -16,9 +16,11 @@ Read the safety notes in the top-level [`README`](../README.md) first.
 > 100 — see [`VERIFIED.md`](VERIFIED.md#powerbook-100) and the probe points in
 > [`REFERENCE-MEASUREMENTS.md`](REFERENCE-MEASUREMENTS.md#powerbook-100).
 >
-> **Rev B boards** ([interposer](../hardware/interposer-revb/README.md), [MCU board](../hardware/mcu-revb/README.md);
-> designed, not yet fabricated) carry this line on the boards, so **no wire** is needed. The wire below is for
-> rev A boards.
+> **Rev B boards** ([interposer](../hardware/interposer-revb/README.md), [MCU board](../hardware/mcu-revb/README.md))
+> carry this line on the boards, so no wire would be needed with both. **Today the wire below is still the
+> tested way:** the rev B interposer is designed but has not been manufactured, and the rev B MCU board has
+> been built but its own disk-mode route has not been tested. Disk Mode has only been verified with the rev A
+> MCU board and this wire.
 >
 > **SCSI Disk Mode needs one extra wire** on rev A boards (0.1.16 or later). The disk-mode signal arrives on the
 > M50753's **pin 48**, which these boards don't connect. Route it through the DF12's spare

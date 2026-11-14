@@ -4,8 +4,9 @@ The same interposer as [rev A](../interposer-v2/README.md), with the **SCSI Disk
 Use it with the [rev B MCU board](../mcu-revb/README.md) and a PowerBook 100 enters disk mode with no
 hand-added wire.
 
-> ⚠️ **Status: designed and checked, not yet fabricated.** Rev A is the version that has been built
-> and tested. Rev B changes only what is listed below; its castellations (60 × 0.40 mm at 0.80 mm
+> ⚠️ **Status: designed and checked, not manufactured.** Rev A is the version that has been built
+> and tested, and it still needs the hand wire in [`BUILD.md`](../../docs/BUILD.md) for PowerBook 100 Disk
+> Mode. Rev B changes only what is listed below; its castellations (60 × 0.40 mm at 0.80 mm
 > pitch, 0.65 mm pads) are identical to rev A's.
 
 ## What rev B fixes

@@ -5,9 +5,13 @@ battery-sense clamp, DF12 socket `J1`, UPDI header `J2`), with three changes: th
 path**, **edge pads** for programming and debugging inside the machine, and the whole board moved
 **5 mm** so the **Portable's case closes** over it.
 
-> ⚠️ **Status: designed and checked, not yet fabricated.** Rev A is the version that has been built
-> and tested. Its fit was checked with a 3D-printed model of the outline at the real heights, which
-> fits under both machines' cases.
+> ⚠️ **Status: built and running; its disk-mode path is untested.** This board has been built and runs
+> in the Portable (case closed: sleep and wake, modem, shutdown and restart work) and in the PowerBook
+> 100, on a **rev A interposer**. SCSI Disk Mode has so far been verified only with the rev A MCU board
+> and the hand wire in [`BUILD.md`](../../docs/BUILD.md); this board's own position 50 → PF2 route has not
+> been tested. **Fit: rev B fits both machines.** In the Portable the real board fits with the case closed.
+> In the PowerBook 100 the real board fits and runs. A 3D-printed model of the outline at the real heights
+> also fits under both machines' cases.
 
 ## What rev B fixes
 
