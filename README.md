@@ -11,6 +11,13 @@ behaviour toward the Mac.
 | **MCU board** | 20.0 × 23.5 mm — carries the AVR, plugs onto the interposer through a Hirose DF12 connector |
 | **J21 breakout** *(optional)* | sits between the two for development, bringing every PMGR signal out to 2.54 mm Dupont headers |
 
+**Two MCU board revisions.** ⛔ The first, **rev A, does not fit the Portable with the case closed** (the
+case catches the board's edge). The main reason for **rev B** is to fix that: it sits 5 mm toward its
+programming header so the Portable's case closes over it. Rev B also adds a PowerBook 100 SCSI Disk Mode
+path and edge pads for programming in the machine. **For a Portable, build rev B.** Rev B fits both
+machines ([`hardware/mcu-revb/`](hardware/mcu-revb/README.md)). The interposer is still rev A: a rev B
+interposer is designed but has not been manufactured.
+
 ## Photos
 
 <table>
@@ -29,6 +36,9 @@ behaviour toward the Mac.
 <tr>
 <td colspan="2"><img src="images/pb100-scsi-disk-mode.jpg" alt="The PowerBook 100's SCSI Disk Mode screen: a SCSI symbol with ID 1" width="60%"><br><b>SCSI Disk Mode</b> on the replacement (0.1.16, with the pin-48 wire): HDI-30 pin 1 grounded at startup, and the PowerBook shows its disk-mode screen with SCSI ID 1.</td>
 </tr>
+<tr>
+<td colspan="2"><img src="images/revb-mcu-board-in-portable1.jpg" alt="The rev B MCU board at the PMGR position on a Macintosh Portable logic board" width="40%"><br><b>Rev B MCU board</b> at the PMGR position in a Macintosh Portable, on a rev A interposer. It sits 5 mm toward its programming header so the Portable's case closes over it.</td>
+</tr>
 </table>
 
 ## Status — version 0.1, prototype
@@ -45,6 +55,11 @@ behaviour toward the Mac.
   needed. ⭐ Since 0.1.16, **SCSI Disk Mode works** with one extra wire on the boards (below); a desktop Mac has mounted the PowerBook's disk through a real adapter.
   **Not yet:** charging (no battery for it yet, so it is uncalibrated and ran on a bench supply), and
   a closed case. See [`docs/VERIFIED.md`](docs/VERIFIED.md#powerbook-100).
+- ⭐ **Rev B MCU board** (built; runs in the Portable and the PowerBook 100, on a rev A interposer). In the
+  Portable the real board fits with the case closed, and sleep and wake, the modem, and shut down and
+  restart all work. In the PowerBook 100 it fits and runs. **Not yet tested:** rev B's own SCSI Disk Mode
+  path. Disk Mode has so far been verified only with the rev A MCU board and the hand wire
+  ([`docs/BUILD.md`](docs/BUILD.md)).
 
 **0.1.18 lets an original hard drive follow the PowerBook 100's disk-mode ID.** The ROM sets the
 drive's SCSI ID on three lines; the firmware now drives the two that go through the PMGR, one of them

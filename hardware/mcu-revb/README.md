@@ -1,9 +1,10 @@
 # MCU board — rev B
 
 The same circuit as the [rev A MCU board](../mcu-board/README.md) (AVR128DB64, decoupling, the
-battery-sense clamp, DF12 socket `J1`, UPDI header `J2`), with three changes: the **SCSI Disk Mode
-path**, **edge pads** for programming and debugging inside the machine, and the whole board moved
-**5 mm** so the **Portable's case closes** over it.
+battery-sense clamp, DF12 socket `J1`, UPDI header `J2`), with three changes. The main reason for this
+revision: rev A does not fit the Portable with the case closed, so the whole board is moved **5 mm** so
+the **Portable's case closes** over it. It also adds the **SCSI Disk Mode path** and **edge pads** for
+programming and debugging inside the machine.
 
 > ⚠️ **Status: built and running; its disk-mode path is untested.** This board has been built and runs
 > in the Portable (case closed: sleep and wake, modem, shutdown and restart work) and in the PowerBook
